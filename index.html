@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STRD Burn Monitor Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #e50571;
+            --dark: #3c001d;
+            --text: #37352F;
+            --white: #ffffff;
+            --border: #e9e9e7;
+            --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+            background-color: #270314;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            background: transparent;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 8px;
+            line-height: 1.2;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .header .subtitle {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .chart-section {
+            background-color: var(--white);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 30px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            border: 2px solid var(--border);
+            border-radius: 50px;
+            background: var(--white);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        .control-divider {
+            width: 1px;
+            height: 25px;
+            background: var(--border);
+            margin: 0 8px;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--white);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid var(--border);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card .icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+            display: block;
+            color: var(--primary);
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 6px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .stat-card .change {
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .bot-link {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+        }
+
+        .bot-link a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.3s ease;
+        }
+
+        .bot-link a:hover {
+            color: var(--white);
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .main-wrapper {
+                padding: 0 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .chart-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .chart-controls {
+                justify-content: center;
+            }
+            
+            .control-divider {
+                display: none;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="header">
+            <div class="header-content">
+                <h1>🔥 STRD Burn Monitor</h1>
+                <div class="subtitle">
+                    Real-time tracking of STRD token burns on Stride blockchain
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-header">
+                <h2 class="chart-title">STRD Burn History</h2>
+                <div class="chart-controls">
+                    <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn">Cumulative</button>
+                    <button class="btn" onclick="changeChartType('individual')" id="individualBtn">Individual Burns</button>
+                    <div class="control-divider"></div>
+                    <button class="btn active" onclick="changeTimeframe('24h')" id="timeframe24h">24H</button>
+                    <button class="btn" onclick="changeTimeframe('7d')" id="timeframe7d">7D</button>
+                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d">30D</button>
+                    <button class="btn" onclick="changeTimeframe('all')" id="timeframeall">All Time</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="burnChart"></canvas>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="icon">🔥</span>
+                <div class="label">Total Burned</div>
+                <div class="value" id="totalBurned">0.000000</div>
+                <div class="change">STRD</div>
+            </div>
+            
+            <div class="stat-card">
+                <span class="icon">⚡</span>
+                <div class="label">Avg Daily Burn Size</div>
+                <div class="value" id="avgBurn">0.000000</div>
+                <div class="change">STRD</div>
+            </div>
+        </div>
+
+        <div class="bot-link">
+            <a href="https://x.com/StrideBurnBot/" target="_blank">
+                🤖 Follow STRD Burn Bot on X
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let burnData = {
+            totalBurned: 0,
+            avgBurn: 0,
+            historicalBurns: [],
+            isRealData: false
+        };
+
+        let chart;
+        let currentTimeframe = '24h';
+        let currentChartType = 'cumulative';
+
+        async function loadCSV() {
+            try {
+                const response = await fetch('./strd_burn.csv');
+                if (!response.ok) throw new Error('CSV not found');
+                
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                const headers = lines[0].split(',');
+                const burns = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    if (values.length < 7) continue;
+                    
+                    const incStrd = parseFloat(values[6]);
+                    if (incStrd <= 0) continue;
+                    
+                    burns.push({
+                        height: parseInt(values[0]),
+                        totalAfter: parseFloat(values[2]),
+                        amount: incStrd,
+                        timestamp: new Date(values[3])
+                    });
+                }
+                
+                if (burns.length > 0) {
+                    burnData.historicalBurns = burns;
+                    burnData.totalBurned = burns[burns.length - 1].totalAfter;
+                    burnData.avgBurn = burns.reduce((sum, burn) => sum + burn.amount, 0) / burns.length;
+                    burnData.isRealData = true;
+                    console.log('Loaded', burns.length, 'burn events from CSV');
+                }
+            } catch (error) {
+                console.log('No CSV found, using mock data');
+                generateMockData();
+            }
+        }
+
+        function generateMockData() {
+            const now = new Date();
+            const burns = [];
+            
+            for (let i = 0; i < 50; i++) {
+                const hoursAgo = Math.random() * 168;
+                const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+                const amount = Math.random() * 200000 + 50000;
+                
+                burns.push({
+                    height: 2001234 - Math.floor(hoursAgo * 60),
+                    amount: amount,
+                    timestamp: timestamp,
+                    totalAfter: 0
+                });
+            }
+            
+            burns.sort((a, b) => a.timestamp - b.timestamp);
+            
+            let runningTotal = 500000;
+            burns.forEach(burn => {
+                runningTotal += burn.amount;
+                burn.totalAfter = runningTotal;
+            });
+            
+            burnData.historicalBurns = burns;
+            burnData.totalBurned = runningTotal;
+            burnData.avgBurn = burns.reduce((sum, burn) => sum + burn.amount, 0) / burns.length;
+        }
+
+        function updateStats() {
+            document.getElementById('totalBurned').textContent = burnData.totalBurned.toLocaleString('en-US', {
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 6
+            });
+            
+            document.getElementById('avgBurn').textContent = burnData.avgBurn.toLocaleString('en-US', {
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 6
+            });
+        }
+
+        function createChart() {
+            const ctx = document.getElementById('burnChart').getContext('2d');
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total STRD Burned',
+                        data: [],
+                        borderColor: '#e50571',
+                        backgroundColor: 'rgba(229, 5, 113, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#e50571',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' STRD';
+                                },
+                                color: '#666',
+                                font: {
+                                    family: 'Inter'
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                color: '#666',
+                                font: {
+                                    family: 'Inter'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            updateChart();
+        }
+
+        function updateChart() {
+            const now = new Date();
+            let filtered = [];
+            
+            switch(currentTimeframe) {
+                case '24h':
+                    filtered = burnData.historicalBurns.filter(burn => 
+                        now - burn.timestamp < 24 * 60 * 60 * 1000
+                    );
+                    break;
+                case '7d':
+                    filtered = burnData.historicalBurns.filter(burn => 
+                        now - burn.timestamp < 7 * 24 * 60 * 60 * 1000
+                    );
+                    break;
+                case '30d':
+                    filtered = burnData.historicalBurns.filter(burn => 
+                        now - burn.timestamp < 30 * 24 * 60 * 60 * 1000
+                    );
+                    break;
+                case 'all':
+                    filtered = burnData.historicalBurns;
+                    break;
+            }
+            
+            if (currentTimeframe === '24h') {
+                chart.data.labels = filtered.map(burn => {
+                    return burn.timestamp.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                });
+            } else {
+                const dailyData = new Map();
+                
+                filtered.forEach(burn => {
+                    const dateKey = burn.timestamp.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: currentTimeframe === 'all' ? '2-digit' : undefined
+                    });
+                    
+                    if (!dailyData.has(dateKey) || burn.timestamp > dailyData.get(dateKey).timestamp) {
+                        dailyData.set(dateKey, burn);
+                    }
+                });
+                
+                filtered = Array.from(dailyData.values()).sort((a, b) => a.timestamp - b.timestamp);
+                chart.data.labels = filtered.map(burn => burn.timestamp.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: currentTimeframe === 'all' ? '2-digit' : undefined
+                }));
+            }
+            
+            if (currentChartType === 'cumulative') {
+                chart.data.datasets[0].data = filtered.map(burn => burn.totalAfter);
+                chart.data.datasets[0].label = 'Total STRD Burned';
+                chart.data.datasets[0].fill = true;
+                chart.options.scales.y.beginAtZero = false;
+            } else {
+                chart.data.datasets[0].data = filtered.map(burn => burn.amount);
+                chart.data.datasets[0].label = 'Individual Burns';
+                chart.data.datasets[0].fill = false;
+                chart.options.scales.y.beginAtZero = true;
+            }
+            
+            chart.update('none');
+        }
+
+        function changeChartType(type) {
+            currentChartType = type;
+            
+            document.getElementById('cumulativeBtn').classList.remove('active');
+            document.getElementById('individualBtn').classList.remove('active');
+            
+            if (type === 'cumulative') {
+                document.getElementById('cumulativeBtn').classList.add('active');
+            } else {
+                document.getElementById('individualBtn').classList.add('active');
+            }
+            
+            updateChart();
+        }
+
+        function changeTimeframe(timeframe) {
+            currentTimeframe = timeframe;
+            
+            document.getElementById('timeframe24h').classList.remove('active');
+            document.getElementById('timeframe7d').classList.remove('active');
+            document.getElementById('timeframe30d').classList.remove('active');
+            document.getElementById('timeframeall').classList.remove('active');
+            document.getElementById('timeframe' + timeframe).classList.add('active');
+            
+            updateChart();
+        }
+
+        async function init() {
+            await loadCSV();
+            updateStats();
+            createChart();
+            
+            if (!burnData.isRealData) {
+                setInterval(() => {
+                    if (Math.random() < 0.3) {
+                        const newBurn = {
+                            amount: Math.random() * 150000 + 25000,
+                            timestamp: new Date(),
+                            totalAfter: burnData.totalBurned + (Math.random() * 150000 + 25000)
+                        };
+                        
+                        burnData.totalBurned = newBurn.totalAfter;
+                        burnData.historicalBurns.push(newBurn);
+                        burnData.avgBurn = burnData.historicalBurns.reduce((sum, burn) => sum + burn.amount, 0) / burnData.historicalBurns.length;
+                        
+                        updateStats();
+                        updateChart();
+                    }
+                }, 10000);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
