@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STRD Burn Monitor Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjMjcwMzE0Ii8+CiAgPHRleHQgeD0iMTYiIHk9IjIyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiNlNTA1NzEiPvCfkqU8L3RleHQ+Cjwvc3ZnPg==">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -45,7 +46,7 @@
         .header {
             background: transparent;
             padding: 20px 0;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
         }
 
         .header-content {
@@ -56,15 +57,38 @@
             font-size: 2rem;
             font-weight: 700;
             color: var(--white);
-            margin-bottom: 8px;
+            margin-bottom: 0;
             line-height: 1.2;
             font-family: 'Inter', sans-serif;
         }
 
-        .header .subtitle {
-            font-size: 0.95rem;
-            color: rgba(255, 255, 255, 0.8);
+        .bot-link {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .bot-link a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
             font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .bot-link a:hover {
+            color: var(--white);
+            border-color: var(--primary);
+            background: rgba(229, 5, 113, 0.1);
+            transform: translateY(-1px);
         }
 
         .chart-section {
@@ -187,29 +211,6 @@
             font-family: 'Inter', sans-serif;
         }
 
-        .bot-link {
-            text-align: center;
-            margin-top: 30px;
-            padding: 20px 0;
-        }
-
-        .bot-link a {
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            font-family: 'Inter', sans-serif;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: opacity 0.3s ease;
-        }
-
-        .bot-link a:hover {
-            color: var(--white);
-            text-decoration: underline;
-        }
-
         @media (max-width: 768px) {
             .main-wrapper {
                 padding: 0 15px;
@@ -243,10 +244,13 @@
         <div class="header">
             <div class="header-content">
                 <h1>🔥 STRD Burn Monitor</h1>
-                <div class="subtitle">
-                    Real-time tracking of STRD token burns on Stride blockchain
-                </div>
             </div>
+        </div>
+
+        <div class="bot-link">
+            <a href="https://x.com/StrideBurnBot/" target="_blank" rel="noopener noreferrer">
+                🤖 Follow @StrideBurnBot on X
+            </a>
         </div>
 
         <div class="chart-section">
@@ -256,9 +260,8 @@
                     <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn">Cumulative</button>
                     <button class="btn" onclick="changeChartType('individual')" id="individualBtn">Individual Burns</button>
                     <div class="control-divider"></div>
-                    <button class="btn active" onclick="changeTimeframe('24h')" id="timeframe24h">24H</button>
-                    <button class="btn" onclick="changeTimeframe('7d')" id="timeframe7d">7D</button>
-                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d">30D</button>
+                    <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d">1 Week</button>
+                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d">1 Month</button>
                     <button class="btn" onclick="changeTimeframe('all')" id="timeframeall">All Time</button>
                 </div>
             </div>
@@ -282,12 +285,6 @@
                 <div class="change">STRD</div>
             </div>
         </div>
-
-        <div class="bot-link">
-            <a href="https://x.com/StrideBurnBot/" target="_blank">
-                🤖 Follow STRD Burn Bot on X
-            </a>
-        </div>
     </div>
 
     <script>
@@ -299,75 +296,70 @@
         };
 
         let chart;
-        let currentTimeframe = '24h';
+        let currentTimeframe = '7d';
         let currentChartType = 'cumulative';
 
         async function loadCSV() {
             try {
-                const response = await fetch('./strd_burn.csv');
+                const response = await fetch('https://storage.googleapis.com/stride-public-data/burn_data/strd_burn.csv');
                 if (!response.ok) throw new Error('CSV not found');
                 
                 const text = await response.text();
                 const lines = text.trim().split('\n');
-                const headers = lines[0].split(',');
                 const burns = [];
                 
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(',');
-                    if (values.length < 7) continue;
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
                     
-                    const incStrd = parseFloat(values[6]);
-                    if (incStrd <= 0) continue;
+                    const parts = line.split(',');
+                    if (parts.length < 2) continue;
+                    
+                    const timestamp = new Date(parts[0]);
+                    const totalBurnedMicroSTRD = parseInt(parts[1]);
+                    
+                    if (isNaN(timestamp.getTime()) || isNaN(totalBurnedMicroSTRD)) continue;
+                    
+                    // Convert microSTRD to STRD
+                    const totalBurnedSTRD = totalBurnedMicroSTRD / 1000000;
+                    
+                    // Calculate daily increase
+                    const previousTotal = burns.length > 0 ? burns[burns.length - 1].totalAfter : 0;
+                    const dailyIncrease = totalBurnedSTRD - previousTotal;
                     
                     burns.push({
-                        height: parseInt(values[0]),
-                        totalAfter: parseFloat(values[2]),
-                        amount: incStrd,
-                        timestamp: new Date(values[3])
+                        timestamp: timestamp,
+                        totalAfter: totalBurnedSTRD,
+                        amount: Math.max(0, dailyIncrease), // Daily burn amount
+                        totalMicroSTRD: totalBurnedMicroSTRD
                     });
                 }
                 
                 if (burns.length > 0) {
                     burnData.historicalBurns = burns;
                     burnData.totalBurned = burns[burns.length - 1].totalAfter;
-                    burnData.avgBurn = burns.reduce((sum, burn) => sum + burn.amount, 0) / burns.length;
+                    
+                    // Calculate average daily burn from non-zero burns
+                    const nonZeroBurns = burns.filter(burn => burn.amount > 0);
+                    burnData.avgBurn = nonZeroBurns.length > 0 
+                        ? nonZeroBurns.reduce((sum, burn) => sum + burn.amount, 0) / nonZeroBurns.length 
+                        : 0;
+                    
                     burnData.isRealData = true;
-                    console.log('Loaded', burns.length, 'burn events from CSV');
+                    console.log('Loaded', burns.length, 'burn records from Google Cloud Storage');
                 }
             } catch (error) {
-                console.log('No CSV found, using mock data');
-                generateMockData();
+                console.log('Failed to load CSV from Google Cloud Storage:', error.message);
+                // If CSV fails to load, show empty dashboard
+                burnData.historicalBurns = [];
+                burnData.totalBurned = 0;
+                burnData.avgBurn = 0;
+                burnData.isRealData = false;
             }
         }
 
         function generateMockData() {
-            const now = new Date();
-            const burns = [];
-            
-            for (let i = 0; i < 50; i++) {
-                const hoursAgo = Math.random() * 168;
-                const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
-                const amount = Math.random() * 200000 + 50000;
-                
-                burns.push({
-                    height: 2001234 - Math.floor(hoursAgo * 60),
-                    amount: amount,
-                    timestamp: timestamp,
-                    totalAfter: 0
-                });
-            }
-            
-            burns.sort((a, b) => a.timestamp - b.timestamp);
-            
-            let runningTotal = 500000;
-            burns.forEach(burn => {
-                runningTotal += burn.amount;
-                burn.totalAfter = runningTotal;
-            });
-            
-            burnData.historicalBurns = burns;
-            burnData.totalBurned = runningTotal;
-            burnData.avgBurn = burns.reduce((sum, burn) => sum + burn.amount, 0) / burns.length;
+            // Mock data functionality removed - dashboard shows empty state when CSV fails to load
         }
 
         function updateStats() {
@@ -438,7 +430,9 @@
                                 color: '#666',
                                 font: {
                                     family: 'Inter'
-                                }
+                                },
+                                maxTicksLimit: 10, // Limit number of labels shown
+                                autoSkip: true // Skip labels if too crowded
                             }
                         }
                     }
@@ -453,11 +447,6 @@
             let filtered = [];
             
             switch(currentTimeframe) {
-                case '24h':
-                    filtered = burnData.historicalBurns.filter(burn => 
-                        now - burn.timestamp < 24 * 60 * 60 * 1000
-                    );
-                    break;
                 case '7d':
                     filtered = burnData.historicalBurns.filter(burn => 
                         now - burn.timestamp < 7 * 24 * 60 * 60 * 1000
@@ -473,35 +462,15 @@
                     break;
             }
             
-            if (currentTimeframe === '24h') {
-                chart.data.labels = filtered.map(burn => {
-                    return burn.timestamp.toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    });
-                });
-            } else {
-                const dailyData = new Map();
-                
-                filtered.forEach(burn => {
-                    const dateKey = burn.timestamp.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: currentTimeframe === 'all' ? '2-digit' : undefined
-                    });
-                    
-                    if (!dailyData.has(dateKey) || burn.timestamp > dailyData.get(dateKey).timestamp) {
-                        dailyData.set(dateKey, burn);
-                    }
-                });
-                
-                filtered = Array.from(dailyData.values()).sort((a, b) => a.timestamp - b.timestamp);
-                chart.data.labels = filtered.map(burn => burn.timestamp.toLocaleDateString('en-US', { 
+            // Since our CSV data is already daily, use it directly without grouping
+            // Just create clean date labels for each data point
+            chart.data.labels = filtered.map(burn => {
+                return burn.timestamp.toLocaleDateString('en-US', { 
                     month: 'short', 
                     day: 'numeric',
                     year: currentTimeframe === 'all' ? '2-digit' : undefined
-                }));
-            }
+                });
+            });
             
             if (currentChartType === 'cumulative') {
                 chart.data.datasets[0].data = filtered.map(burn => burn.totalAfter);
@@ -510,7 +479,7 @@
                 chart.options.scales.y.beginAtZero = false;
             } else {
                 chart.data.datasets[0].data = filtered.map(burn => burn.amount);
-                chart.data.datasets[0].label = 'Individual Burns';
+                chart.data.datasets[0].label = 'Daily Burns';
                 chart.data.datasets[0].fill = false;
                 chart.options.scales.y.beginAtZero = true;
             }
@@ -536,7 +505,6 @@
         function changeTimeframe(timeframe) {
             currentTimeframe = timeframe;
             
-            document.getElementById('timeframe24h').classList.remove('active');
             document.getElementById('timeframe7d').classList.remove('active');
             document.getElementById('timeframe30d').classList.remove('active');
             document.getElementById('timeframeall').classList.remove('active');
@@ -549,25 +517,6 @@
             await loadCSV();
             updateStats();
             createChart();
-            
-            if (!burnData.isRealData) {
-                setInterval(() => {
-                    if (Math.random() < 0.3) {
-                        const newBurn = {
-                            amount: Math.random() * 150000 + 25000,
-                            timestamp: new Date(),
-                            totalAfter: burnData.totalBurned + (Math.random() * 150000 + 25000)
-                        };
-                        
-                        burnData.totalBurned = newBurn.totalAfter;
-                        burnData.historicalBurns.push(newBurn);
-                        burnData.avgBurn = burnData.historicalBurns.reduce((sum, burn) => sum + burn.amount, 0) / burnData.historicalBurns.length;
-                        
-                        updateStats();
-                        updateChart();
-                    }
-                }, 10000);
-            }
         }
 
         document.addEventListener('DOMContentLoaded', init);
