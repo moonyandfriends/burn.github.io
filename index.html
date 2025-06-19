@@ -366,6 +366,7 @@
                     <div class="control-divider"></div>
                     <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d" aria-label="Show last 7 days">1 Week</button>
                     <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d" aria-label="Show last 30 days">1 Month</button>
+                    <button class="btn" onclick="changeTimeframe('6m')" id="timeframe6m" aria-label="Show last 6 months">6 Months</button>
                     <button class="btn" onclick="changeTimeframe('all')" id="timeframeall" aria-label="Show all time data">All Time</button>
                 </div>
             </div>
@@ -661,6 +662,11 @@
                         now - burn.timestamp < 30 * 24 * 60 * 60 * 1000
                     );
                     break;
+                case '6m':
+                    filtered = burnData.historicalBurns.filter(burn => 
+                        now - burn.timestamp < 183 * 24 * 60 * 60 * 1000
+                    );
+                    break;
                 case 'all':
                     filtered = burnData.historicalBurns;
                     break;
@@ -709,6 +715,7 @@
             
             document.getElementById('timeframe7d').classList.remove('active');
             document.getElementById('timeframe30d').classList.remove('active');
+            document.getElementById('timeframe6m').classList.remove('active');
             document.getElementById('timeframeall').classList.remove('active');
             document.getElementById('timeframe' + timeframe).classList.add('active');
             
