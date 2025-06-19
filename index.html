@@ -404,8 +404,6 @@
                 <div class="change">Date</div>
             </div>
         </div>
-
-        <div class="last-updated" id="lastUpdated"></div>
     </div>
 
     <script>
@@ -444,12 +442,6 @@
 
         function hideError() {
             document.getElementById('errorContainer').style.display = 'none';
-        }
-
-        function updateLastUpdated() {
-            const now = new Date();
-            const lastUpdated = document.getElementById('lastUpdated');
-            lastUpdated.textContent = `Last updated: ${now.toLocaleString()}`;
         }
 
         async function loadCSV() {
@@ -536,7 +528,6 @@
             loadCSV().then(() => {
                 updateStats();
                 updateChart();
-                updateLastUpdated();
             });
         }
 
@@ -726,7 +717,6 @@
             await loadCSV();
             updateStats();
             createChart();
-            updateLastUpdated();
         }
 
         document.addEventListener('DOMContentLoaded', init);
