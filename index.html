@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STRD Burn Monitor Dashboard</title>
+    <meta name="description" content="Real-time dashboard for monitoring STRD token burns on the Stride blockchain">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjMjcwMzE0Ii8+CiAgPHRleHQgeD0iMTYiIHk9IjIyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiNlNTA1NzEiPvCfkqU8L3RleHQ+Cjwvc3ZnPg==">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +18,9 @@
             --white: #ffffff;
             --border: #e9e9e7;
             --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --error: #dc3545;
+            --success: #28a745;
+            --warning: #ffc107;
         }
         
         * {
@@ -38,7 +42,7 @@
 
         .main-wrapper {
             width: 100%;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 40px 20px;
         }
@@ -89,6 +93,76 @@
             border-color: var(--primary);
             background: rgba(229, 5, 113, 0.1);
             transform: translateY(-1px);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(39, 3, 20, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(229, 5, 113, 0.3);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--white);
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: var(--error);
+            text-align: center;
+        }
+
+        .error-message h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .error-message p {
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .retry-btn {
+            background: var(--error);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .retry-btn:hover {
+            background: #c82333;
         }
 
         .chart-section {
@@ -211,6 +285,13 @@
             font-family: 'Inter', sans-serif;
         }
 
+        .last-updated {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
         @media (max-width: 768px) {
             .main-wrapper {
                 padding: 0 15px;
@@ -237,9 +318,30 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .loading-spinner {
+                animation: none;
+            }
+            
+            .stat-card:hover {
+                transform: none;
+            }
+            
+            .bot-link a:hover {
+                transform: none;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align: center;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading burn data...</div>
+        </div>
+    </div>
+
     <div class="main-wrapper">
         <div class="header">
             <div class="header-content">
@@ -253,44 +355,64 @@
             </a>
         </div>
 
+        <div id="errorContainer" style="display: none;"></div>
+
         <div class="chart-section">
             <div class="chart-header">
                 <h2 class="chart-title">STRD Burn History</h2>
                 <div class="chart-controls">
-                    <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn">Cumulative</button>
-                    <button class="btn" onclick="changeChartType('individual')" id="individualBtn">Individual Burns</button>
+                    <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn" aria-label="Show cumulative burn data">Cumulative</button>
+                    <button class="btn" onclick="changeChartType('individual')" id="individualBtn" aria-label="Show individual burn data">Individual Burns</button>
                     <div class="control-divider"></div>
-                    <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d">1 Week</button>
-                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d">1 Month</button>
-                    <button class="btn" onclick="changeTimeframe('all')" id="timeframeall">All Time</button>
+                    <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d" aria-label="Show last 7 days">1 Week</button>
+                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d" aria-label="Show last 30 days">1 Month</button>
+                    <button class="btn" onclick="changeTimeframe('all')" id="timeframeall" aria-label="Show all time data">All Time</button>
                 </div>
             </div>
             <div class="chart-container">
-                <canvas id="burnChart"></canvas>
+                <canvas id="burnChart" role="img" aria-label="STRD burn history chart"></canvas>
             </div>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <span class="icon">🔥</span>
+                <span class="icon" aria-hidden="true">🔥</span>
                 <div class="label">Total Burned</div>
                 <div class="value" id="totalBurned">0.000000</div>
                 <div class="change">STRD</div>
             </div>
             
             <div class="stat-card">
-                <span class="icon">⚡</span>
+                <span class="icon" aria-hidden="true">⚡</span>
                 <div class="label">Avg Daily Burn Size</div>
                 <div class="value" id="avgBurn">0.000000</div>
                 <div class="change">STRD</div>
             </div>
+
+            <div class="stat-card">
+                <span class="icon" aria-hidden="true">📈</span>
+                <div class="label">Burn Rate (7d)</div>
+                <div class="value" id="burnRate">0.000000</div>
+                <div class="change">STRD/day</div>
+            </div>
+
+            <div class="stat-card">
+                <span class="icon" aria-hidden="true">🕒</span>
+                <div class="label">Last Burn</div>
+                <div class="value" id="lastBurn">--</div>
+                <div class="change">Date</div>
+            </div>
         </div>
+
+        <div class="last-updated" id="lastUpdated"></div>
     </div>
 
     <script>
         let burnData = {
             totalBurned: 0,
             avgBurn: 0,
+            burnRate: 0,
+            lastBurnDate: null,
             historicalBurns: [],
             isRealData: false
         };
@@ -299,10 +421,43 @@
         let currentTimeframe = '7d';
         let currentChartType = 'cumulative';
 
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function showError(message, retryFunction) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    <h3>⚠️ Unable to Load Data</h3>
+                    <p>${message}</p>
+                    <button class="retry-btn" onclick="${retryFunction}">Retry</button>
+                </div>
+            `;
+            errorContainer.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorContainer').style.display = 'none';
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const lastUpdated = document.getElementById('lastUpdated');
+            lastUpdated.textContent = `Last updated: ${now.toLocaleString()}`;
+        }
+
         async function loadCSV() {
             try {
+                showLoading();
+                hideError();
+                
                 const response = await fetch('https://storage.googleapis.com/stride-public-data/burn_data/strd_burn.csv');
-                if (!response.ok) throw new Error('CSV not found');
+                if (!response.ok) throw new Error('Failed to fetch data from server');
                 
                 const text = await response.text();
                 const lines = text.trim().split('\n');
@@ -338,6 +493,7 @@
                 if (burns.length > 0) {
                     burnData.historicalBurns = burns;
                     burnData.totalBurned = burns[burns.length - 1].totalAfter;
+                    burnData.lastBurnDate = burns[burns.length - 1].timestamp;
                     
                     // Calculate average daily burn from non-zero burns
                     const nonZeroBurns = burns.filter(burn => burn.amount > 0);
@@ -345,21 +501,42 @@
                         ? nonZeroBurns.reduce((sum, burn) => sum + burn.amount, 0) / nonZeroBurns.length 
                         : 0;
                     
+                    // Calculate 7-day burn rate
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    const recentBurns = burns.filter(burn => burn.timestamp >= sevenDaysAgo && burn.amount > 0);
+                    burnData.burnRate = recentBurns.length > 0 
+                        ? recentBurns.reduce((sum, burn) => sum + burn.amount, 0) / 7 
+                        : 0;
+                    
                     burnData.isRealData = true;
                     console.log('Loaded', burns.length, 'burn records from Google Cloud Storage');
+                } else {
+                    throw new Error('No valid burn data found');
                 }
             } catch (error) {
-                console.log('Failed to load CSV from Google Cloud Storage:', error.message);
-                // If CSV fails to load, show empty dashboard
+                console.error('Failed to load CSV:', error);
+                showError(
+                    'Unable to load burn data. This could be due to network issues or the data source being temporarily unavailable.',
+                    'retryLoadData()'
+                );
                 burnData.historicalBurns = [];
                 burnData.totalBurned = 0;
                 burnData.avgBurn = 0;
+                burnData.burnRate = 0;
+                burnData.lastBurnDate = null;
                 burnData.isRealData = false;
+            } finally {
+                hideLoading();
             }
         }
 
-        function generateMockData() {
-            // Mock data functionality removed - dashboard shows empty state when CSV fails to load
+        function retryLoadData() {
+            loadCSV().then(() => {
+                updateStats();
+                updateChart();
+                updateLastUpdated();
+            });
         }
 
         function updateStats() {
@@ -372,6 +549,22 @@
                 minimumFractionDigits: 6,
                 maximumFractionDigits: 6
             });
+
+            document.getElementById('burnRate').textContent = burnData.burnRate.toLocaleString('en-US', {
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 6
+            });
+
+            const lastBurnElement = document.getElementById('lastBurn');
+            if (burnData.lastBurnDate) {
+                lastBurnElement.textContent = burnData.lastBurnDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: '2-digit'
+                });
+            } else {
+                lastBurnElement.textContent = '--';
+            }
         }
 
         function createChart() {
@@ -404,6 +597,17 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    return `${context.dataset.label}: ${value.toLocaleString('en-US', {
+                                        minimumFractionDigits: 6,
+                                        maximumFractionDigits: 6
+                                    })} STRD`;
+                                }
+                            }
                         }
                     },
                     scales: {
@@ -431,8 +635,8 @@
                                 font: {
                                     family: 'Inter'
                                 },
-                                maxTicksLimit: 10, // Limit number of labels shown
-                                autoSkip: true // Skip labels if too crowded
+                                maxTicksLimit: 10,
+                                autoSkip: true
                             }
                         }
                     }
@@ -462,8 +666,6 @@
                     break;
             }
             
-            // Since our CSV data is already daily, use it directly without grouping
-            // Just create clean date labels for each data point
             chart.data.labels = filtered.map(burn => {
                 return burn.timestamp.toLocaleDateString('en-US', { 
                     month: 'short', 
@@ -517,6 +719,7 @@
             await loadCSV();
             updateStats();
             createChart();
+            updateLastUpdated();
         }
 
         document.addEventListener('DOMContentLoaded', init);
