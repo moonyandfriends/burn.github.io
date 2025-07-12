@@ -212,7 +212,7 @@
             border-radius: 10px;
             padding: 25px;
             box-shadow: var(--box-shadow);
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
@@ -330,11 +330,12 @@
         }
 
         .stat-card .change {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
             font-family: 'Inter', sans-serif;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
         }
 
         .last-updated {
@@ -356,9 +357,19 @@
             .chart-header {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 15px;
             }
             
             .chart-controls {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .chart-controls .control-group {
+                display: flex;
+                gap: 8px;
                 justify-content: center;
             }
             
@@ -408,12 +419,16 @@
             <div class="chart-header">
                 <h2 id="chart-title" class="chart-title">STRD Burn History</h2>
                 <div class="chart-controls">
-                    <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn" aria-label="Show cumulative burn data">Cumulative</button>
-                    <button class="btn" onclick="changeChartType('individual')" id="individualBtn" aria-label="Show individual burn data">Individual Burns</button>
+                    <div class="control-group">
+                        <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn" aria-label="Show cumulative burn data">Cumulative</button>
+                        <button class="btn" onclick="changeChartType('individual')" id="individualBtn" aria-label="Show individual burn data">Individual Burns</button>
+                    </div>
                     <div class="control-divider"></div>
-                    <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d" aria-label="Show last 7 days">1 Week</button>
-                    <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d" aria-label="Show last 30 days">1 Month</button>
-                    <button class="btn" onclick="changeTimeframe('all')" id="timeframeall" aria-label="Show all time data">All Time</button>
+                    <div class="control-group">
+                        <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d" aria-label="Show last 7 days">1 Week</button>
+                        <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d" aria-label="Show last 30 days">1 Month</button>
+                        <button class="btn" onclick="changeTimeframe('all')" id="timeframeall" aria-label="Show all time data">All Time</button>
+                    </div>
                 </div>
             </div>
             <div class="chart-container">
