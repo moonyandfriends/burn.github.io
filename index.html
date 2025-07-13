@@ -287,10 +287,11 @@
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
             border-radius: 10px;
-            padding: 20px;
+            padding: 24px;
             box-shadow: var(--box-shadow);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.3);
+            text-align: center;
         }
 
         .stat-card:hover {
@@ -299,8 +300,8 @@
         }
 
         .stat-card .icon {
-            font-size: 2rem;
-            margin-bottom: 12px;
+            font-size: 2.5rem;
+            margin-bottom: 16px;
             display: block;
             background: linear-gradient(135deg, var(--primary), #ff1493);
             -webkit-background-clip: text;
@@ -310,23 +311,24 @@
         }
 
         .stat-card .label {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: rgba(255, 255, 255, 0.9);
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 6px;
+            margin-bottom: 12px;
             font-weight: 600;
             font-family: 'Inter', sans-serif;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .stat-card .value {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 800;
             color: var(--white);
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             font-family: 'Inter', sans-serif;
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            line-height: 1.2;
         }
 
         .stat-card .change {
@@ -532,12 +534,10 @@
                         ? nonZeroBurns.reduce((sum, burn) => sum + burn.amount, 0) / nonZeroBurns.length 
                         : 0;
                     
-                    // Calculate 7-day burn rate
-                    const sevenDaysAgo = new Date();
-                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                    const recentBurns = burns.filter(burn => burn.timestamp >= sevenDaysAgo && burn.amount > 0);
-                    burnData.burnRate = recentBurns.length > 0 
-                        ? recentBurns.reduce((sum, burn) => sum + burn.amount, 0) / 7 
+                    // Calculate 7-day burn rate from last 7 days of actual data
+                    const last7BurnsWithData = burns.slice(-7).filter(burn => burn.amount > 0);
+                    burnData.burnRate = last7BurnsWithData.length > 0 
+                        ? last7BurnsWithData.reduce((sum, burn) => sum + burn.amount, 0) / 7 
                         : 0;
                     
                     burnData.isRealData = true;
@@ -565,20 +565,11 @@
         }
 
         function updateStats() {
-            document.getElementById('totalBurned').textContent = burnData.totalBurned.toLocaleString('en-US', {
-                minimumFractionDigits: 6,
-                maximumFractionDigits: 6
-            });
+            document.getElementById('totalBurned').textContent = Math.round(burnData.totalBurned).toLocaleString('en-US');
             
-            document.getElementById('avgBurn').textContent = burnData.avgBurn.toLocaleString('en-US', {
-                minimumFractionDigits: 6,
-                maximumFractionDigits: 6
-            });
+            document.getElementById('avgBurn').textContent = Math.round(burnData.avgBurn).toLocaleString('en-US');
 
-            document.getElementById('burnRate').textContent = burnData.burnRate.toLocaleString('en-US', {
-                minimumFractionDigits: 6,
-                maximumFractionDigits: 6
-            });
+            document.getElementById('burnRate').textContent = Math.round(burnData.burnRate).toLocaleString('en-US');
         }
 
         function createChart() {
