@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stride Burn Transactions</title>
+    <style>
+        body { 
+            background: black; 
+            color: pink; 
+            font-family: monospace; 
+            padding: 20px; 
+        }
+        a { 
+            color: pink; 
+            text-decoration: underline; 
+        }
+        a:hover { 
+            color: hotpink; 
+        }
+        button { 
+            background: pink; 
+            color: black; 
+            border: none; 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stride Burn Transactions</h1>
+    <button onclick="loadBurns()">Refresh</button>
+    <div id="results"></div>
+
+    <script>
+        async function loadBurns() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Loading burn transactions...</p>';
+            
+            try {
+                const response = await fetch('https://stride-rpc.polkachu.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tx_search',
+                        params: {
+                            query: "message.action='/stride.strdburner.MsgBurn'",
+                            prove: false,
+                            page: '1',
+                            per_page: '20',
+                            order_by: 'desc'
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.result || !data.result.txs) {
+                    resultsDiv.innerHTML = '<p>No burn transactions found.</p>';
+                    return;
+                }
+                
+                let html = `<p>Found ${data.result.total_count} total burn transactions</p><br>`;
+                
+                data.result.txs.forEach(tx => {
+                    const txDecoded = JSON.parse(atob(tx.tx));
+                    const burnMsg = txDecoded.body.messages.find(m => m['@type'] === '/stride.strdburner.MsgBurn');
+                    
+                    if (burnMsg) {
+                        const amountInStrd = (parseInt(burnMsg.amount) / 1000000).toFixed(6);
+                        html += `
+                            <div style="margin-bottom: 20px;">
+                                <div>Tx: <a href="https://www.mintscan.io/stride/tx/${tx.hash}" target="_blank">${tx.hash}</a></div>
+                                <div>Height: ${tx.height}</div>
+                                <div>Burner: ${burnMsg.burner}</div>
+                                <div>Amount: ${amountInStrd} STRD</div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+        
+        loadBurns();
+    </script>
+</body>
+</html>
