@@ -49,13 +49,15 @@ The site uses a SPA architecture where:
 5. Displays via Chart.js with three timeframes (7d, 30d, all time) and two chart types (cumulative, individual)
 
 **Auctions Section**:
-1. Attempts to fetch auctions from `https://stride-api.polkachu.com/stride/auction/v1/auctions`
-2. **Note**: API endpoint currently returns "Not Implemented" - using sample data for now
-3. Displays auction cards with: status, discount percentage, selling/payment tokens, min bid, total sold
-4. Wallet integration using CosmJS from CDN (@cosmjs/stargate, @cosmjs/proto-signing)
-5. Bid submission creates `MsgPlaceBid` transaction with typeUrl `/stride.auction.MsgPlaceBid`
-6. Modal-based bidding interface with real-time token estimate calculations
-7. Once auction API is live, will automatically switch to real data
+1. Fetches live auction data from `https://stride-api.polkachu.com/stride/auction/auctions`
+2. Displays 16 active auctions: ATOM, OSMO, TIA, JUNO, INJ, DYDX, EVMOS, LUNA, STARS, SAGA, BAND, CMDX, DYM, ISLM, SOMM, UMEE
+3. IBC denom mapping converts on-chain denoms to readable token names
+4. Handles large numbers (18+ decimals) using BigInt, displays with K/M/B abbreviations
+5. All auctions offer 3% discount (min_price_multiplier: 0.97)
+6. Min bid is 1 micro-STRD (0.000001 STRD) for all auctions
+7. Wallet integration using CosmJS from CDN (@cosmjs/stargate, @cosmjs/proto-signing)
+8. Bid submission creates `MsgPlaceBid` transaction with typeUrl `/stride.auction.MsgPlaceBid`
+9. Modal-based bidding interface with real-time token estimate calculations
 
 **User Burns Page (userburns.html)**:
 - Queries Stride RPC at `https://stride-rpc.polkachu.com` using JSON-RPC
