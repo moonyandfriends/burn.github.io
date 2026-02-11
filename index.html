@@ -3,65 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STRD Burn Dashboard | Stride Liquid Staking Token Burns</title>
-    <meta name="description" content="Real-time STRD token burn tracking dashboard for Stride blockchain. Monitor daily burns, cumulative totals, and burn statistics for the Cosmos liquid staking protocol.">
-    <meta name="keywords" content="STRD, Stride, token burn, liquid staking, Cosmos, blockchain, cryptocurrency, DeFi, staking rewards">
-    <meta name="author" content="Stride Labs">
-    <meta name="robots" content="index, follow">
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://burn.atomhe.art/">
-    <meta property="og:title" content="STRD Burn Dashboard | Stride Liquid Staking">
-    <meta property="og:description" content="Real-time STRD token burn tracking dashboard for Stride blockchain. Monitor daily burns, cumulative totals, and burn statistics.">
-    <meta property="og:site_name" content="Stride STRD Burn Dashboard">
-    
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://burn.atomhe.art/">
-    <meta property="twitter:title" content="STRD Burn Dashboard | Stride Liquid Staking">
-    <meta property="twitter:description" content="Real-time STRD token burn tracking dashboard for Stride blockchain. Monitor daily burns, cumulative totals, and burn statistics.">
-    <meta property="twitter:site" content="@stride_zone">
-    
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://burn.atomhe.art/">
-    
-    <!-- Theme Color -->
+    <title>STRD Dashboard | Stride Protocol</title>
+    <meta name="description" content="Real-time STRD token burn tracking and Protocol-Owned Liquidity auctions for Stride blockchain.">
     <meta name="theme-color" content="#e50571">
     <link rel="icon" type="image/x-icon" href="static/strdburn.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "STRD Burn Dashboard",
-        "description": "Real-time STRD token burn tracking dashboard for Stride blockchain",
-        "url": "https://burn.atomhe.art/",
-        "applicationCategory": "FinanceApplication",
-        "operatingSystem": "Web Browser",
-        "author": {
-            "@type": "Organization",
-            "name": "Stride Labs",
-            "url": "https://stride.zone/"
-        },
-        "about": {
-            "@type": "Thing",
-            "name": "STRD Token Burns",
-            "description": "Token burn statistics and analytics for the Stride liquid staking protocol"
-        },
-        "keywords": ["STRD", "Stride", "token burn", "liquid staking", "Cosmos", "blockchain", "DeFi"],
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        }
-    }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@cosmjs/stargate@0.32.2/build/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@cosmjs/proto-signing@0.32.2/build/index.min.js"></script>
+
     <style>
         :root {
             --primary: #e50571;
@@ -71,11 +23,10 @@
             --white: #ffffff;
             --border: #e9e9e7;
             --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            --error: #dc3545;
             --success: #28a745;
             --warning: #ffc107;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
@@ -107,7 +58,7 @@
 
         .main-wrapper {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 40px 20px;
         }
@@ -198,21 +149,12 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 50px;
-            backdrop-filter: blur(10px);
         }
 
         .wallet-address {
             color: var(--white);
             font-weight: 600;
             font-size: 0.85rem;
-        }
-
-        .wallet-balance {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.75rem;
         }
 
         .nav-tabs {
@@ -234,57 +176,28 @@
             transition: all 0.3s ease;
             font-family: 'Inter', sans-serif;
             cursor: pointer;
+            border: none;
         }
 
         .nav-tab:hover {
             background: rgba(255, 255, 255, 0.15);
             color: var(--white);
-            border-color: rgba(255, 255, 255, 0.5);
         }
 
         .nav-tab.active {
             background: var(--primary);
             color: var(--white);
-            border-color: var(--primary);
         }
 
-        .header .subtitle {
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.8);
-            font-weight: 400;
-            margin-bottom: 0;
-            font-family: 'Inter', sans-serif;
+        .page-content {
+            display: none;
         }
 
-        .bot-link {
-            text-align: center;
-            margin-bottom: 30px;
+        .page-content.active {
+            display: block;
         }
 
-        .bot-link a {
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            font-family: 'Inter', sans-serif;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-        }
-
-        .bot-link a:hover {
-            color: var(--white);
-            border-color: var(--primary);
-            background: rgba(229, 5, 113, 0.1);
-            transform: translateY(-1px);
-        }
-
+        /* Burn Stats Styles */
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -319,8 +232,6 @@
             font-size: 1.1rem;
             font-weight: 500;
         }
-
-
 
         .chart-section {
             background: rgba(255, 255, 255, 0.15);
@@ -445,61 +356,260 @@
             letter-spacing: 0.5px;
         }
 
-        .last-updated {
-            text-align: center;
+        /* Auction Styles */
+        .auction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .auction-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 24px;
+            box-shadow: var(--box-shadow);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .auction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .auction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+
+        .auction-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--white);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .auction-status {
+            display: flex;
+            gap: 6px;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(40, 167, 69, 0.3);
+            color: #90EE90;
+        }
+
+        .status-inactive {
+            background: rgba(220, 53, 69, 0.3);
+            color: #FFB6C1;
+        }
+
+        .discount-badge {
+            background: rgba(40, 167, 69, 0.3);
+            color: #90EE90;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .auction-details {
+            margin: 20px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
             color: rgba(255, 255, 255, 0.7);
             font-size: 0.9rem;
+        }
+
+        .detail-value {
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .bid-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #e50571, #A91B60);
+            color: var(--white);
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+        }
+
+        .bid-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 5, 113, 0.4);
+        }
+
+        .bid-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(169, 27, 96, 0.95), rgba(0, 0, 0, 0.95));
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            color: var(--white);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-hint {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+            margin-top: 6px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--white);
+            font-size: 1.1rem;
+        }
+
+        .error-message {
+            background: rgba(220, 53, 69, 0.2);
+            color: #FFB6C1;
+            padding: 16px;
+            border-radius: 10px;
             margin-top: 20px;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
             .main-wrapper {
-                padding: 0 15px;
+                padding: 20px 15px;
             }
-            
+
             .header h1 {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
             }
-            
+
             .chart-header {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 15px;
             }
-            
+
             .chart-controls {
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
                 align-items: stretch;
             }
-            
+
             .chart-controls .control-group {
                 display: flex;
                 gap: 8px;
                 justify-content: center;
             }
-            
+
             .control-divider {
                 display: none;
             }
-            
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-        }
 
-        @media (prefers-reduced-motion: reduce) {
-            .loading-spinner {
-                animation: none;
-            }
-            
-            .stat-card:hover {
-                transform: none;
-            }
-            
-            .bot-link a:hover {
-                transform: none;
+            .auction-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -535,483 +645,85 @@
         </header>
 
         <nav class="nav-tabs">
-            <a href="auctions.html" class="nav-tab">Auctions</a>
-            <a href="index.html" class="nav-tab active">Burn Stats</a>
+            <button class="nav-tab" onclick="switchPage('auctions')" id="auctionsTab">Auctions</button>
+            <button class="nav-tab active" onclick="switchPage('burn-stats')" id="burnStatsTab">Burn Stats</button>
         </nav>
 
+        <!-- Auctions Page -->
+        <div id="auctionsPage" class="page-content">
+            <div id="auctionsContainer">
+                <div class="loading">Loading auctions...</div>
+            </div>
+        </div>
 
-
-
-        <section class="chart-section" aria-labelledby="chart-title">
-            <div class="chart-header">
-                <div class="chart-controls">
-                    <div class="control-group">
-                        <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn" aria-label="Show cumulative burn data">Cumulative</button>
-                        <button class="btn" onclick="changeChartType('individual')" id="individualBtn" aria-label="Show individual burn data">Individual Burns</button>
-                    </div>
-                    <div class="control-divider"></div>
-                    <div class="control-group">
-                        <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d" aria-label="Show last 7 days">1 Week</button>
-                        <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d" aria-label="Show last 30 days">1 Month</button>
-                        <button class="btn" onclick="changeTimeframe('all')" id="timeframeall" aria-label="Show all time data">All Time</button>
+        <!-- Burn Stats Page -->
+        <div id="burnStatsPage" class="page-content active">
+            <section class="chart-section" aria-labelledby="chart-title">
+                <div class="chart-header">
+                    <div class="chart-controls">
+                        <div class="control-group">
+                            <button class="btn active" onclick="changeChartType('cumulative')" id="cumulativeBtn">Cumulative</button>
+                            <button class="btn" onclick="changeChartType('individual')" id="individualBtn">Individual Burns</button>
+                        </div>
+                        <div class="control-divider"></div>
+                        <div class="control-group">
+                            <button class="btn active" onclick="changeTimeframe('7d')" id="timeframe7d">1 Week</button>
+                            <button class="btn" onclick="changeTimeframe('30d')" id="timeframe30d">1 Month</button>
+                            <button class="btn" onclick="changeTimeframe('all')" id="timeframeall">All Time</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="burnChart" role="img" aria-label="STRD burn history chart"></canvas>
-            </div>
-        </section>
+                <div class="chart-container">
+                    <canvas id="burnChart" role="img" aria-label="STRD burn history chart"></canvas>
+                </div>
+            </section>
 
-        <section class="stats-grid" aria-labelledby="stats-heading">
-            <h2 id="stats-heading" class="sr-only">STRD Burn Statistics</h2>
-            <div class="stat-card">
-                <div class="label">Total Burned</div>
-                <div class="value" id="totalBurned">0.000000</div>
-                <div class="change">STRD</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="label">Avg Daily Burn (7D)</div>
-                <div class="value" id="burnRate">0.000000</div>
-                <div class="change">STRD/day</div>
-            </div>
+            <section class="stats-grid" aria-labelledby="stats-heading">
+                <h2 id="stats-heading" class="sr-only">STRD Burn Statistics</h2>
+                <div class="stat-card">
+                    <div class="label">Total Burned</div>
+                    <div class="value" id="totalBurned">0.000000</div>
+                    <div class="change">STRD</div>
+                </div>
 
-            <div class="stat-card">
-                <div class="label">Avg Daily Burn (All Time)</div>
-                <div class="value" id="avgBurn">0.000000</div>
-                <div class="change">STRD/day</div>
-            </div>
-        </section>
+                <div class="stat-card">
+                    <div class="label">Avg Daily Burn (7D)</div>
+                    <div class="value" id="burnRate">0.000000</div>
+                    <div class="change">STRD/day</div>
+                </div>
 
+                <div class="stat-card">
+                    <div class="label">Avg Daily Burn (All Time)</div>
+                    <div class="value" id="avgBurn">0.000000</div>
+                    <div class="change">STRD/day</div>
+                </div>
+            </section>
+        </div>
     </main>
 
-    <script>
-        let burnData = {
-            totalBurned: 0,
-            avgBurn: 0,
-            burnRate: 0,
-            lastBurnDate: null,
-            historicalBurns: [],
-            isRealData: false
-        };
+    <!-- Bid Modal -->
+    <div class="modal" id="bidModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Place Bid</h2>
+                <button class="close-button" onclick="closeBidModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bid Amount (STRD)</label>
+                <input type="number" class="form-input" id="bidAmount" placeholder="Enter amount">
+                <div class="form-hint" id="minBidHint">Minimum bid: 0 STRD</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">You will receive approximately:</label>
+                <div class="detail-value" id="estimatedReceive">0 tokens</div>
+            </div>
+            <button class="bid-button" onclick="submitBid()" id="submitBidButton">
+                Confirm Bid
+            </button>
+            <div id="bidError"></div>
+        </div>
+    </div>
 
-        let chart;
-        let currentTimeframe = '7d';
-        let currentChartType = 'cumulative';
-
-        function showLoading() {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
-        async function loadCSV() {
-            try {
-                showLoading();
-                
-                const response = await fetch('https://storage.googleapis.com/stride-public-data/burn_data/strd_burn.csv');
-                if (!response.ok) throw new Error('Failed to fetch data from server');
-                
-                const text = await response.text();
-                const lines = text.trim().split('\n');
-                const burns = [];
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-                    
-                    const parts = line.split(',');
-                    if (parts.length < 2) continue;
-                    
-                    const timestamp = new Date(parts[0]);
-                    const totalBurnedMicroSTRD = parseInt(parts[1]);
-                    
-                    if (isNaN(timestamp.getTime()) || isNaN(totalBurnedMicroSTRD)) continue;
-                    
-                    // Convert microSTRD to STRD
-                    const totalBurnedSTRD = totalBurnedMicroSTRD / 1000000;
-                    
-                    // Calculate daily increase
-                    const previousTotal = burns.length > 0 ? burns[burns.length - 1].totalAfter : 0;
-                    const dailyIncrease = totalBurnedSTRD - previousTotal;
-                    
-                    burns.push({
-                        timestamp: timestamp,
-                        totalAfter: totalBurnedSTRD,
-                        amount: Math.max(0, dailyIncrease), // Daily burn amount
-                        totalMicroSTRD: totalBurnedMicroSTRD
-                    });
-                }
-                
-                if (burns.length > 0) {
-                    burnData.historicalBurns = burns;
-                    burnData.totalBurned = burns[burns.length - 1].totalAfter;
-                    burnData.lastBurnDate = burns[burns.length - 1].timestamp;
-                    
-                    // Calculate average daily burn from non-zero burns
-                    const nonZeroBurns = burns.filter(burn => burn.amount > 0);
-                    burnData.avgBurn = nonZeroBurns.length > 0 
-                        ? nonZeroBurns.reduce((sum, burn) => sum + burn.amount, 0) / nonZeroBurns.length 
-                        : 0;
-                    
-                    // Calculate 7-day burn rate from last 7 days of actual data
-                    const last7BurnsWithData = burns.slice(-7).filter(burn => burn.amount > 0);
-                    burnData.burnRate = last7BurnsWithData.length > 0 
-                        ? last7BurnsWithData.reduce((sum, burn) => sum + burn.amount, 0) / 7 
-                        : 0;
-                    
-                    burnData.isRealData = true;
-                    console.log('Loaded', burns.length, 'burn records from Google Cloud Storage');
-                } else {
-                    console.error('No valid burn data found');
-                    burnData.historicalBurns = [];
-                    burnData.totalBurned = 0;
-                    burnData.avgBurn = 0;
-                    burnData.burnRate = 0;
-                    burnData.lastBurnDate = null;
-                    burnData.isRealData = false;
-                }
-            } catch (error) {
-                console.error('Failed to load CSV:', error);
-                burnData.historicalBurns = [];
-                burnData.totalBurned = 0;
-                burnData.avgBurn = 0;
-                burnData.burnRate = 0;
-                burnData.lastBurnDate = null;
-                burnData.isRealData = false;
-            } finally {
-                hideLoading();
-            }
-        }
-
-        function updateStats() {
-            document.getElementById('totalBurned').textContent = Math.round(burnData.totalBurned).toLocaleString('en-US');
-            
-            document.getElementById('avgBurn').textContent = Math.round(burnData.avgBurn).toLocaleString('en-US');
-
-            document.getElementById('burnRate').textContent = Math.round(burnData.burnRate).toLocaleString('en-US');
-        }
-
-        function createChart() {
-            const ctx = document.getElementById('burnChart').getContext('2d');
-            
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Total STRD Burned',
-                        data: [],
-                        borderColor: '#e50571',
-                        backgroundColor: 'rgba(229, 5, 113, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#e50571',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    return `${context.dataset.label}: ${value.toLocaleString('en-US', {
-                                        minimumFractionDigits: 6,
-                                        maximumFractionDigits: 6
-                                    })} STRD`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString() + ' STRD';
-                                },
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter',
-                                    weight: 600
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            ticks: {
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter',
-                                    weight: 600
-                                },
-                                maxTicksLimit: 10,
-                                autoSkip: true
-                            }
-                        }
-                    }
-                }
-            });
-            
-            updateChart();
-        }
-
-        function updateChart() {
-            const now = new Date();
-            let filtered = [];
-            
-            switch(currentTimeframe) {
-                case '7d':
-                    filtered = burnData.historicalBurns.filter(burn => 
-                        now - burn.timestamp < 7 * 24 * 60 * 60 * 1000
-                    );
-                    break;
-                case '30d':
-                    filtered = burnData.historicalBurns.filter(burn => 
-                        now - burn.timestamp < 30 * 24 * 60 * 60 * 1000
-                    );
-                    break;
-                case 'all':
-                    filtered = burnData.historicalBurns;
-                    break;
-            }
-            
-            chart.data.labels = filtered.map(burn => {
-                return burn.timestamp.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: currentTimeframe === 'all' ? '2-digit' : undefined
-                });
-            });
-            
-            if (currentChartType === 'cumulative') {
-                chart.data.datasets[0].data = filtered.map(burn => burn.totalAfter);
-                chart.data.datasets[0].label = 'Total STRD Burned';
-                chart.data.datasets[0].fill = true;
-                chart.options.scales.y.beginAtZero = false;
-            } else {
-                chart.data.datasets[0].data = filtered.map(burn => burn.amount);
-                chart.data.datasets[0].label = 'Daily Burns';
-                chart.data.datasets[0].fill = false;
-                chart.options.scales.y.beginAtZero = true;
-            }
-            
-            chart.update('none');
-        }
-
-        function changeChartType(type) {
-            currentChartType = type;
-            
-            document.getElementById('cumulativeBtn').classList.remove('active');
-            document.getElementById('individualBtn').classList.remove('active');
-            
-            if (type === 'cumulative') {
-                document.getElementById('cumulativeBtn').classList.add('active');
-            } else {
-                document.getElementById('individualBtn').classList.add('active');
-            }
-            
-            updateChart();
-        }
-
-        function changeTimeframe(timeframe) {
-            currentTimeframe = timeframe;
-            
-            document.getElementById('timeframe7d').classList.remove('active');
-            document.getElementById('timeframe30d').classList.remove('active');
-            document.getElementById('timeframeall').classList.remove('active');
-            document.getElementById('timeframe' + timeframe).classList.add('active');
-            
-            updateChart();
-        }
-
-        async function init() {
-            await loadCSV();
-            updateStats();
-            createChart();
-        }
-
-        document.addEventListener('DOMContentLoaded', init);
-
-        // Wallet connection functionality
-        const STRIDE_CHAIN_INFO = {
-            chainId: 'stride-1',
-            chainName: 'Stride',
-            rpc: 'https://stride-rpc.polkachu.com',
-            rest: 'https://stride-api.polkachu.com',
-            bip44: { coinType: 118 },
-            bech32Config: {
-                bech32PrefixAccAddr: 'stride',
-                bech32PrefixAccPub: 'stridepub',
-                bech32PrefixValAddr: 'stridevaloper',
-                bech32PrefixValPub: 'stridevaloperpub',
-                bech32PrefixConsAddr: 'stridevalcons',
-                bech32PrefixConsPub: 'stridevalconspub',
-            },
-            currencies: [{
-                coinDenom: 'STRD',
-                coinMinimalDenom: 'ustrd',
-                coinDecimals: 6,
-                coinGeckoId: 'stride',
-            }],
-            feeCurrencies: [{
-                coinDenom: 'STRD',
-                coinMinimalDenom: 'ustrd',
-                coinDecimals: 6,
-                coinGeckoId: 'stride',
-                gasPriceStep: { low: 0.005, average: 0.01, high: 0.03 },
-            }],
-            stakeCurrency: {
-                coinDenom: 'STRD',
-                coinMinimalDenom: 'ustrd',
-                coinDecimals: 6,
-                coinGeckoId: 'stride',
-            },
-            features: ['ibc-transfer', 'ibc-go'],
-        };
-
-        let walletState = {
-            isConnected: false,
-            address: null,
-            walletType: null,
-        };
-
-        function toggleWalletDropdown() {
-            if (walletState.isConnected) {
-                disconnect();
-            } else {
-                const dropdown = document.getElementById('walletDropdown');
-                dropdown.classList.toggle('active');
-            }
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const dropdown = document.getElementById('walletDropdown');
-            if (!dropdown.contains(event.target)) {
-                dropdown.classList.remove('active');
-            }
-        });
-
-        async function connectKeplr() {
-            try {
-                if (!window.keplr) {
-                    alert('Please install Keplr wallet extension');
-                    return;
-                }
-
-                await window.keplr.experimentalSuggestChain(STRIDE_CHAIN_INFO);
-                await window.keplr.enable(STRIDE_CHAIN_INFO.chainId);
-
-                const offlineSigner = window.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
-                const accounts = await offlineSigner.getAccounts();
-
-                walletState = {
-                    isConnected: true,
-                    address: accounts[0].address,
-                    walletType: 'keplr',
-                };
-
-                updateWalletUI();
-                document.getElementById('walletDropdown').classList.remove('active');
-            } catch (error) {
-                console.error('Failed to connect Keplr:', error);
-                alert('Failed to connect Keplr wallet');
-            }
-        }
-
-        async function connectLeap() {
-            try {
-                if (!window.leap) {
-                    alert('Please install Leap wallet extension');
-                    return;
-                }
-
-                await window.leap.experimentalSuggestChain(STRIDE_CHAIN_INFO);
-                await window.leap.enable(STRIDE_CHAIN_INFO.chainId);
-
-                const offlineSigner = window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
-                const accounts = await offlineSigner.getAccounts();
-
-                walletState = {
-                    isConnected: true,
-                    address: accounts[0].address,
-                    walletType: 'leap',
-                };
-
-                updateWalletUI();
-                document.getElementById('walletDropdown').classList.remove('active');
-            } catch (error) {
-                console.error('Failed to connect Leap:', error);
-                alert('Failed to connect Leap wallet');
-            }
-        }
-
-        function disconnect() {
-            walletState = {
-                isConnected: false,
-                address: null,
-                walletType: null,
-            };
-            updateWalletUI();
-        }
-
-        function updateWalletUI() {
-            const button = document.getElementById('walletButton');
-            const dropdown = document.getElementById('walletDropdown');
-
-            if (walletState.isConnected) {
-                const shortAddress = `${walletState.address.slice(0, 10)}...${walletState.address.slice(-8)}`;
-                button.innerHTML = `
-                    <div class="wallet-connected">
-                        <span class="wallet-address">${shortAddress}</span>
-                    </div>
-                `;
-                button.onclick = disconnect;
-            } else {
-                button.textContent = 'Connect Wallet';
-                button.onclick = toggleWalletDropdown;
-            }
-
-            // Save to localStorage
-            if (walletState.isConnected) {
-                localStorage.setItem('walletState', JSON.stringify(walletState));
-            } else {
-                localStorage.removeItem('walletState');
-            }
-        }
-
-        // Restore wallet state on page load
-        window.addEventListener('load', () => {
-            const savedState = localStorage.getItem('walletState');
-            if (savedState) {
-                try {
-                    walletState = JSON.parse(savedState);
-                    updateWalletUI();
-                } catch (e) {
-                    console.error('Failed to restore wallet state:', e);
-                }
-            }
-        });
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
