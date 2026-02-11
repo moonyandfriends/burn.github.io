@@ -882,7 +882,7 @@ async function submitBid() {
             signDoc
         );
 
-        // Broadcast the transaction using Cosmos SDK REST API
+        // Broadcast the transaction using legacy Amino endpoint
         const broadcastBody = {
             tx: {
                 msg: signed.signed.msgs,
@@ -895,10 +895,10 @@ async function submitBid() {
                 ],
                 memo: signed.signed.memo,
             },
-            mode: 'BROADCAST_MODE_SYNC',
+            mode: 'sync',
         };
 
-        const broadcastResponse = await fetch(`${API_BASE_URL}/cosmos/tx/v1beta1/txs`, {
+        const broadcastResponse = await fetch(`${API_BASE_URL}/txs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
