@@ -480,6 +480,12 @@ function changeTimeframe(timeframe) {
 
 // Auction Functions
 function formatDenom(denom) {
+    // Check if it's an IBC denom
+    if (denom.startsWith('ibc/')) {
+        return IBC_DENOM_MAP[denom] || denom.substring(4, 8) + '...';
+    }
+
+    // Handle standard denoms
     const denomMap = {
         'ustrd': 'STRD',
         'uatom': 'ATOM',
@@ -490,52 +496,81 @@ function formatDenom(denom) {
 }
 
 function formatAmount(amount, decimals = 6) {
-    const value = parseInt(amount) / Math.pow(10, decimals);
+    // Handle very large numbers and strings
+    let value;
+    if (typeof amount === 'string' && amount.length > 15) {
+        // For very large numbers, use BigInt
+        try {
+            const bigAmount = BigInt(amount);
+            const divisor = BigInt(Math.pow(10, decimals));
+            value = Number(bigAmount / divisor);
+        } catch (e) {
+            value = parseFloat(amount) / Math.pow(10, decimals);
+        }
+    } else {
+        value = parseFloat(amount) / Math.pow(10, decimals);
+    }
+
+    // For very large numbers, use abbreviated format
+    if (value >= 1e9) {
+        return (value / 1e9).toFixed(2) + 'B';
+    } else if (value >= 1e6) {
+        return (value / 1e6).toFixed(2) + 'M';
+    } else if (value >= 1e3) {
+        return (value / 1e3).toFixed(2) + 'K';
+    }
+
     return value.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 6,
     });
 }
 
+// IBC denom to readable name mapping
+const IBC_DENOM_MAP = {
+    'ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2': 'ATOM',
+    'ibc/AC11D57A5FBC0DF322615027DB86FAA602283F1801ED71FDDAA26117C41256D7': 'BAND',
+    'ibc/EB66980014602E6BD50A1CB9FFB8FA694DC3EC10A48D2C1C649D732954F88D4A': 'CMDX',
+    'ibc/561C70B20188A047BFDE6F9946BDDC5D8AC172B9BE04FF868DFABF819E5A9CCE': 'DYDX',
+    'ibc/E1C22332C083574F3418481359733BA8887D171E76C80AD9237422AEABB66018': 'DYM',
+    'ibc/4B322204B4F59D770680FE4D7A565DDC3F37BFF035474B717476C66A4F83DD72': 'EVMOS',
+    'ibc/A7454562FF29FE068F42F9DE4805ABEF54F599D1720B345D6518D9B5C64EA6D2': 'INJ',
+    'ibc/255BEB856BFBC1B75A3C349CF769E9FADEB595804F4FC688A72D651576B9180E': 'ISLM',
+    'ibc/DA356E369C3E5CF6A9F1DCD99CE8ED55FBD595E676A5CF033CE784C060492D5A': 'JUNO',
+    'ibc/E61BCB1126F42A2ED73B4CEA2221C9635BC2102F0417543C38071779F991942E': 'LUNA',
+    'ibc/D24B4564BCD51D3D02D9987D92571EAC5915676A9BD6D9B0C1D0254CB8A5EA34': 'OSMO',
+    'ibc/520D9C4509027DE66C737A1D6A6021915A3071E30DBA8F758B46532B060D7AA5': 'SAGA',
+    'ibc/B86EFF6D227E3E33D7E3B5E65D0C1BB5BD79CCB56D35A9D824F0DD5D52CA43BA': 'SOMM',
+    'ibc/7EAE5BEF3A26B64AFBD89828AFDDB1DC7024A0276D22745201632C40E6E634D0': 'STARS',
+    'ibc/BF3B4F53F3694B66E13C23107C84B6485BD2B96296BB7EC680EA77BBA75B4801': 'TIA',
+    'ibc/1A2271226209D309902AFF4F21BD21237CB514DD24EA2EE0423BF74C6135D8B8': 'UMEE',
+};
+
 async function fetchAuctions() {
     try {
-        const response = await fetch(`${API_BASE_URL}/stride/auction/v1/auctions`);
+        const response = await fetch(`${API_BASE_URL}/stride/auction/auctions`);
         const data = await response.json();
 
         if (data.auctions && data.auctions.length > 0) {
-            return data.auctions;
+            // Transform the API response to match our expected format
+            return data.auctions.map(auction => ({
+                type: auction.type === 'AUCTION_TYPE_FCFS' ? 'FCFS' : auction.type,
+                name: auction.name,
+                sellingDenom: auction.selling_denom,
+                paymentDenom: auction.payment_denom,
+                enabled: auction.enabled,
+                minPriceMultiplier: auction.min_price_multiplier,
+                minBidAmount: auction.min_bid_amount,
+                beneficiary: auction.beneficiary,
+                totalPaymentTokenReceived: auction.total_payment_token_received,
+                totalSellingTokenSold: auction.total_selling_token_sold,
+            }));
         }
     } catch (error) {
-        console.error('Failed to fetch auctions from API (Note: API endpoint may not be implemented yet):', error);
+        console.error('Failed to fetch auctions from API:', error);
     }
 
-    // Sample auctions - the API endpoint is not implemented yet
-    return [
-        {
-            type: 'FCFS',
-            name: 'atom-auction',
-            sellingDenom: 'uatom',
-            paymentDenom: 'ustrd',
-            enabled: true,
-            minPriceMultiplier: '0.95',
-            minBidAmount: '1000000',
-            beneficiary: 'stride1example...',
-            totalPaymentTokenReceived: '500000000',
-            totalSellingTokenSold: '100000000',
-        },
-        {
-            type: 'FCFS',
-            name: 'osmo-auction',
-            sellingDenom: 'uosmo',
-            paymentDenom: 'ustrd',
-            enabled: true,
-            minPriceMultiplier: '0.90',
-            minBidAmount: '2000000',
-            beneficiary: 'stride1example...',
-            totalPaymentTokenReceived: '300000000',
-            totalSellingTokenSold: '75000000',
-        }
-    ];
+    return [];
 }
 
 async function loadAuctions() {
@@ -564,6 +599,10 @@ async function loadAuctions() {
 function createAuctionCard(auction) {
     const discount = ((1 - parseFloat(auction.minPriceMultiplier)) * 100).toFixed(1);
 
+    // Format min bid - if it's 1, it means 1 micro-STRD (0.000001 STRD)
+    const minBidValue = parseFloat(auction.minBidAmount);
+    const minBidDisplay = minBidValue <= 1 ? '0.000001' : formatAmount(auction.minBidAmount);
+
     const card = document.createElement('div');
     card.className = 'auction-card';
 
@@ -588,7 +627,7 @@ function createAuctionCard(auction) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">Min Bid</span>
-                <span class="detail-value">${formatAmount(auction.minBidAmount)} STRD</span>
+                <span class="detail-value">${minBidDisplay} STRD</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Total Sold</span>
@@ -607,8 +646,12 @@ function openBidModal(auctionName) {
     currentAuction = auctions.find(a => a.name === auctionName);
     if (!currentAuction) return;
 
+    // Format min bid properly
+    const minBidValue = parseFloat(currentAuction.minBidAmount);
+    const minBidDisplay = minBidValue <= 1 ? '0.000001' : formatAmount(currentAuction.minBidAmount);
+
     document.getElementById('modalTitle').textContent = `Bid on ${currentAuction.name}`;
-    document.getElementById('minBidHint').textContent = `Minimum bid: ${formatAmount(currentAuction.minBidAmount)} STRD`;
+    document.getElementById('minBidHint').textContent = `Minimum bid: ${minBidDisplay} STRD`;
     document.getElementById('bidAmount').value = '';
     document.getElementById('estimatedReceive').textContent = '0 ' + formatDenom(currentAuction.sellingDenom);
     document.getElementById('bidError').innerHTML = '';
