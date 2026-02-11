@@ -895,7 +895,7 @@ async function submitBid() {
                 ],
                 memo: signed.signed.memo,
             },
-            mode: 'async',
+            mode: 'BROADCAST_MODE_SYNC',
         };
 
         const broadcastResponse = await fetch(`${API_BASE_URL}/cosmos/tx/v1beta1/txs`, {
