@@ -223,17 +223,6 @@ function updateWalletUI() {
         button.textContent = 'Connect Wallet';
         button.onclick = toggleWalletDropdown;
     }
-
-    // Save to localStorage
-    if (walletState.isConnected) {
-        localStorage.setItem('walletState', JSON.stringify({
-            isConnected: walletState.isConnected,
-            address: walletState.address,
-            walletType: walletState.walletType,
-        }));
-    } else {
-        localStorage.removeItem('walletState');
-    }
 }
 
 // Burn Stats Functions
@@ -663,11 +652,25 @@ async function loadAuctions() {
         return;
     }
 
+    // Sort auctions: available first, sold out last
+    const sortedAuctions = [...auctions].sort((a, b) => {
+        const aBalance = parseInt(auctionBalances[a.sellingDenom] || '0');
+        const bBalance = parseInt(auctionBalances[b.sellingDenom] || '0');
+
+        // If both have balance or both don't, sort alphabetically by name
+        if ((aBalance > 0 && bBalance > 0) || (aBalance === 0 && bBalance === 0)) {
+            return a.name.localeCompare(b.name);
+        }
+
+        // Otherwise, available (with balance) comes first
+        return bBalance - aBalance;
+    });
+
     container.innerHTML = '';
     const grid = document.createElement('div');
     grid.className = 'auction-grid';
 
-    for (const auction of auctions) {
+    for (const auction of sortedAuctions) {
         const card = createAuctionCard(auction);
         grid.appendChild(card);
     }
@@ -726,20 +729,12 @@ function createAuctionCard(auction) {
         </div>
         <div class="auction-details">
             <div class="detail-row">
-                <span class="detail-label">Selling</span>
-                <span class="detail-value">${tokenName}</span>
-            </div>
-            <div class="detail-row">
                 <span class="detail-label">Available</span>
                 <span class="detail-value" style="color: ${hasBalance ? '#90EE90' : '#FFB6C1'}; font-weight: 700;">
                     ${availableAmount} ${tokenName}
                 </span>
             </div>
             ${priceDisplay}
-            <div class="detail-row">
-                <span class="detail-label">Min Bid</span>
-                <span class="detail-value">${minBidDisplay} STRD</span>
-            </div>
             <div class="detail-row">
                 <span class="detail-label">Total Sold</span>
                 <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${tokenName}</span>
@@ -872,19 +867,9 @@ async function init() {
     updateStats();
     createChart();
 
-    // Restore wallet state
-    const savedState = localStorage.getItem('walletState');
-    if (savedState) {
-        try {
-            const saved = JSON.parse(savedState);
-            walletState.isConnected = saved.isConnected;
-            walletState.address = saved.address;
-            walletState.walletType = saved.walletType;
-            updateWalletUI();
-        } catch (e) {
-            console.error('Failed to restore wallet state:', e);
-        }
-    }
+    // Don't restore wallet state - require fresh connection each time
+    // This ensures signingClient is properly initialized
+    localStorage.removeItem('walletState');
 
     // Handle URL hash for navigation
     const hash = window.location.hash.slice(1);
