@@ -757,14 +757,25 @@ function openBidModal(auctionName) {
     currentAuction = auctions.find(a => a.name === auctionName);
     if (!currentAuction) return;
 
-    // Format min bid properly
-    const minBidValue = parseFloat(currentAuction.minBidAmount);
-    const minBidDisplay = minBidValue <= 1 ? '0.000001' : formatAmount(currentAuction.minBidAmount);
+    const tokenName = formatDenom(currentAuction.sellingDenom);
+    const availableBalance = auctionBalances[currentAuction.sellingDenom] || '0';
+    const availableTokens = parseFloat(availableBalance) / 1000000; // Convert from micro to normal units
+
+    // Calculate STRD needed for full amount
+    let strdNeeded = 0;
+    if (oraclePrices[tokenName] && oraclePrices['STRD']) {
+        const tokenOraclePrice = oraclePrices[tokenName];
+        const auctionPrice = tokenOraclePrice * parseFloat(currentAuction.minPriceMultiplier);
+        const strdPrice = oraclePrices['STRD'];
+        const strdPerToken = auctionPrice / strdPrice;
+        strdNeeded = availableTokens * strdPerToken;
+    }
 
     document.getElementById('modalTitle').textContent = `Bid on ${currentAuction.name}`;
-    document.getElementById('minBidHint').textContent = `Minimum bid: ${minBidDisplay} STRD`;
-    document.getElementById('bidAmount').value = '';
-    document.getElementById('estimatedReceive').textContent = '0 ' + formatDenom(currentAuction.sellingDenom);
+    document.getElementById('bidAmount').value = strdNeeded.toFixed(2);
+    document.getElementById('bidAmount').disabled = true;
+    document.getElementById('minBidHint').textContent = `Bidding for full available amount`;
+    document.getElementById('estimatedReceive').textContent = availableTokens.toFixed(6) + ' ' + tokenName;
     document.getElementById('bidError').innerHTML = '';
 
     document.getElementById('bidModal').classList.add('active');
@@ -775,34 +786,7 @@ function closeBidModal() {
     currentAuction = null;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const bidAmountInput = document.getElementById('bidAmount');
-    if (bidAmountInput) {
-        bidAmountInput.addEventListener('input', function(e) {
-            if (!currentAuction) return;
-
-            const strdAmount = parseFloat(e.target.value) || 0;
-            const tokenName = formatDenom(currentAuction.sellingDenom);
-
-            // Calculate based on oracle prices
-            if (oraclePrices[tokenName] && oraclePrices['STRD']) {
-                const tokenOraclePrice = oraclePrices[tokenName];
-                const auctionPrice = tokenOraclePrice * parseFloat(currentAuction.minPriceMultiplier);
-                const strdPrice = oraclePrices['STRD'];
-                const strdPerToken = auctionPrice / strdPrice;
-
-                // How many tokens can be bought with the STRD amount
-                const tokensReceived = strdAmount / strdPerToken;
-
-                document.getElementById('estimatedReceive').textContent =
-                    tokensReceived.toFixed(6) + ' ' + tokenName;
-            } else {
-                // Fallback if no price data
-                document.getElementById('estimatedReceive').textContent = '0 ' + tokenName;
-            }
-        });
-    }
-});
+// Bid amount input is now disabled, no need for event listener
 
 async function submitBid() {
     if (!walletState.isConnected || !walletState.signingClient) {
@@ -810,19 +794,30 @@ async function submitBid() {
         return;
     }
 
-    const bidAmountSTRD = parseFloat(document.getElementById('bidAmount').value);
-    if (!bidAmountSTRD || bidAmountSTRD <= 0) {
-        showBidError('Please enter a valid bid amount');
+    const tokenName = formatDenom(currentAuction.sellingDenom);
+    const availableBalance = auctionBalances[currentAuction.sellingDenom] || '0';
+
+    if (parseInt(availableBalance) === 0) {
+        showBidError('No tokens available for this auction');
         return;
     }
 
-    const minBidSTRD = parseInt(currentAuction.minBidAmount) / 1000000;
-    if (bidAmountSTRD < minBidSTRD) {
-        showBidError(`Bid must be at least ${minBidSTRD} STRD`);
+    // Calculate STRD needed for full available amount
+    const availableTokens = parseFloat(availableBalance) / 1000000;
+    let strdNeeded = 0;
+
+    if (oraclePrices[tokenName] && oraclePrices['STRD']) {
+        const tokenOraclePrice = oraclePrices[tokenName];
+        const auctionPrice = tokenOraclePrice * parseFloat(currentAuction.minPriceMultiplier);
+        const strdPrice = oraclePrices['STRD'];
+        const strdPerToken = auctionPrice / strdPrice;
+        strdNeeded = availableTokens * strdPerToken;
+    } else {
+        showBidError('Unable to calculate bid amount - price data unavailable');
         return;
     }
 
-    const bidAmountMicro = Math.floor(bidAmountSTRD * 1000000).toString();
+    const bidAmountMicro = Math.floor(strdNeeded * 1000000).toString();
 
     try {
         document.getElementById('submitBidButton').disabled = true;
@@ -850,7 +845,7 @@ async function submitBid() {
         );
 
         if (result.code === 0) {
-            alert('Bid placed successfully! Transaction hash: ' + result.transactionHash);
+            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
             closeBidModal();
             loadAuctions();
         } else {

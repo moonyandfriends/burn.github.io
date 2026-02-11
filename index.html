@@ -709,13 +709,13 @@
                 <button class="close-button" onclick="closeBidModal()">&times;</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Bid Amount (STRD)</label>
-                <input type="number" class="form-input" id="bidAmount" placeholder="Enter amount">
-                <div class="form-hint" id="minBidHint">Minimum bid: 0 STRD</div>
+                <label class="form-label">STRD Required (Full Amount)</label>
+                <input type="text" class="form-input" id="bidAmount" readonly style="background: rgba(255, 255, 255, 0.05); cursor: not-allowed;">
+                <div class="form-hint" id="minBidHint">Bidding for full available amount</div>
             </div>
             <div class="form-group">
-                <label class="form-label">You will receive approximately:</label>
-                <div class="detail-value" id="estimatedReceive">0 tokens</div>
+                <label class="form-label">You will receive:</label>
+                <div class="detail-value" id="estimatedReceive" style="font-size: 1.3rem;">0 tokens</div>
             </div>
             <button class="bid-button" onclick="submitBid()" id="submitBidButton">
                 Confirm Bid
