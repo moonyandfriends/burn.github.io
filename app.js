@@ -809,8 +809,14 @@ async function submitBid() {
         document.getElementById('submitBidButton').disabled = true;
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
-        // Use Keplr/Leap's built-in transaction signing
-        const msg = {
+        // Get account number and sequence
+        const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
+        const accountData = await accountResponse.json();
+        const accountNumber = accountData.account.account_number;
+        const sequence = accountData.account.sequence;
+
+        // Create the transaction message in Amino JSON format
+        const aminoMsg = {
             type: 'stride/auction/MsgPlaceBid',
             value: {
                 auction_name: currentAuction.name,
@@ -824,21 +830,56 @@ async function submitBid() {
             gas: '200000',
         };
 
-        const result = await walletState.wallet.signAndBroadcast(
+        const signDoc = {
+            chain_id: STRIDE_CHAIN_INFO.chainId,
+            account_number: accountNumber,
+            sequence: sequence,
+            fee: fee,
+            msgs: [aminoMsg],
+            memo: 'Bid placed via STRD Dashboard',
+        };
+
+        // Sign the transaction using Keplr/Leap
+        const signed = await walletState.wallet.signAmino(
             STRIDE_CHAIN_INFO.chainId,
             walletState.address,
-            [msg],
-            fee,
-            'Bid placed via STRD Dashboard'
+            signDoc
         );
 
-        if (result.code === 0 || result.txhash) {
-            const txHash = result.transactionHash || result.txhash;
+        // Broadcast the transaction using Cosmos SDK REST API
+        const broadcastBody = {
+            tx: {
+                msg: signed.signed.msgs,
+                fee: signed.signed.fee,
+                signatures: [
+                    {
+                        pub_key: signed.signature.pub_key,
+                        signature: signed.signature.signature,
+                    }
+                ],
+                memo: signed.signed.memo,
+            },
+            mode: 'async',
+        };
+
+        const broadcastResponse = await fetch(`${API_BASE_URL}/cosmos/tx/v1beta1/txs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(broadcastBody),
+        });
+
+        const result = await broadcastResponse.json();
+
+        if (result.tx_response && (result.tx_response.code === 0 || !result.tx_response.code)) {
+            const txHash = result.tx_response.txhash;
             alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${txHash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            showBidError('Transaction failed: ' + (result.rawLog || result.raw_log || 'Unknown error'));
+            const errorMsg = result.tx_response?.raw_log || result.message || 'Unknown error';
+            showBidError('Transaction failed: ' + errorMsg);
         }
     } catch (error) {
         console.error('Failed to submit bid:', error);
