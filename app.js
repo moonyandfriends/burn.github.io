@@ -882,39 +882,52 @@ async function submitBid() {
             signDoc
         );
 
-        // Broadcast the transaction using legacy Amino endpoint
-        const broadcastBody = {
-            tx: {
-                msg: signed.signed.msgs,
-                fee: signed.signed.fee,
-                signatures: [
-                    {
-                        pub_key: signed.signature.pub_key,
-                        signature: signed.signature.signature,
-                    }
-                ],
-                memo: signed.signed.memo,
-            },
-            mode: 'sync',
+        // Construct the StdTx
+        const stdTx = {
+            msg: signed.signed.msgs,
+            fee: signed.signed.fee,
+            signatures: [
+                {
+                    pub_key: signed.signature.pub_key,
+                    signature: signed.signature.signature,
+                }
+            ],
+            memo: signed.signed.memo,
         };
 
-        const broadcastResponse = await fetch(`${API_BASE_URL}/txs`, {
+        // Encode the transaction to Amino JSON and then to base64 for RPC broadcast
+        const txBytes = new TextEncoder().encode(JSON.stringify(stdTx));
+        const txBase64 = btoa(String.fromCharCode(...txBytes));
+
+        // Broadcast using Tendermint RPC
+        const broadcastResponse = await fetch(RPC_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(broadcastBody),
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'broadcast_tx_sync',
+                params: {
+                    tx: txBase64,
+                },
+            }),
         });
 
         const result = await broadcastResponse.json();
 
-        if (result.tx_response && (result.tx_response.code === 0 || !result.tx_response.code)) {
-            const txHash = result.tx_response.txhash;
+        // Handle RPC response format
+        if (result.error) {
+            const errorMsg = result.error.data || result.error.message || 'Unknown error';
+            showBidError('Transaction failed: ' + errorMsg);
+        } else if (result.result && (result.result.code === 0 || !result.result.code)) {
+            const txHash = result.result.hash;
             alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${txHash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            const errorMsg = result.tx_response?.raw_log || result.message || 'Unknown error';
+            const errorMsg = result.result?.log || 'Unknown error';
             showBidError('Transaction failed: ' + errorMsg);
         }
     } catch (error) {
