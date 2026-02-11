@@ -545,10 +545,34 @@ let auctionBalances = {};
 const AUCTION_MODULE_ADDRESS = 'stride1j4yzhgjm00ch3h0p9kel7g8sp6g045qfcgk6ex';
 
 async function fetchOraclePrices() {
+    // Check cache first (5 minute expiry)
+    const cached = localStorage.getItem('oraclePrices');
+    const cacheTime = localStorage.getItem('oraclePricesTime');
+
+    if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        if (age < 5 * 60 * 1000) { // 5 minutes
+            console.log('Using cached oracle prices');
+            return JSON.parse(cached);
+        }
+    }
+
     try {
         // Get all unique CoinGecko IDs from active tokens
         const ids = Object.values(COINGECKO_ID_MAP).join(',');
         const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+
+        if (!response.ok) {
+            if (response.status === 429) {
+                console.warn('CoinGecko rate limit hit, using cached prices if available');
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+                throw new Error('Rate limit exceeded and no cached prices available');
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+
         const data = await response.json();
 
         // Convert to our token name format
@@ -559,9 +583,21 @@ async function fetchOraclePrices() {
             }
         }
 
+        // Cache the prices
+        localStorage.setItem('oraclePrices', JSON.stringify(prices));
+        localStorage.setItem('oraclePricesTime', Date.now().toString());
+        console.log('Fetched and cached new oracle prices');
+
         return prices;
     } catch (error) {
         console.error('Failed to fetch oracle prices:', error);
+
+        // Return cached prices if available, even if expired
+        if (cached) {
+            console.log('Using stale cached prices due to error');
+            return JSON.parse(cached);
+        }
+
         return {};
     }
 }
