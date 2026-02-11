@@ -568,6 +568,8 @@ const COINGECKO_ID_MAP = {
 };
 
 let oraclePrices = {};
+let auctionBalances = {};
+const AUCTION_MODULE_ADDRESS = 'stride1j4yzhgjm00ch3h0p9kel7g8sp6g045qfcgk6ex';
 
 async function fetchOraclePrices() {
     try {
@@ -587,6 +589,29 @@ async function fetchOraclePrices() {
         return prices;
     } catch (error) {
         console.error('Failed to fetch oracle prices:', error);
+        return {};
+    }
+}
+
+async function fetchAuctionBalances() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/cosmos/bank/v1beta1/balances/${AUCTION_MODULE_ADDRESS}?pagination.limit=100`);
+        const data = await response.json();
+
+        const balances = {};
+        if (data.balances) {
+            data.balances.forEach(balance => {
+                const amount = balance.amount;
+                // Only include non-zero balances
+                if (amount && parseInt(amount) > 0) {
+                    balances[balance.denom] = amount;
+                }
+            });
+        }
+
+        return balances;
+    } catch (error) {
+        console.error('Failed to fetch auction balances:', error);
         return {};
     }
 }
@@ -620,16 +645,18 @@ async function fetchAuctions() {
 
 async function loadAuctions() {
     const container = document.getElementById('auctionsContainer');
-    container.innerHTML = '<div class="loading">Loading auctions and prices...</div>';
+    container.innerHTML = '<div class="loading">Loading auctions, prices, and availability...</div>';
 
-    // Fetch both auctions and oracle prices in parallel
-    const [auctionData, prices] = await Promise.all([
+    // Fetch auctions, oracle prices, and balances in parallel
+    const [auctionData, prices, balances] = await Promise.all([
         fetchAuctions(),
-        fetchOraclePrices()
+        fetchOraclePrices(),
+        fetchAuctionBalances()
     ]);
 
     auctions = auctionData;
     oraclePrices = prices;
+    auctionBalances = balances;
 
     if (auctions.length === 0) {
         container.innerHTML = '<div class="error-message">No auctions available at this time</div>';
@@ -651,6 +678,11 @@ async function loadAuctions() {
 function createAuctionCard(auction) {
     const discount = ((1 - parseFloat(auction.minPriceMultiplier)) * 100).toFixed(1);
     const tokenName = formatDenom(auction.sellingDenom);
+
+    // Check available balance
+    const availableBalance = auctionBalances[auction.sellingDenom] || '0';
+    const hasBalance = parseInt(availableBalance) > 0;
+    const availableAmount = formatAmount(availableBalance);
 
     // Format min bid - if it's 1, it means 1 micro-STRD (0.000001 STRD)
     const minBidValue = parseFloat(auction.minBidAmount);
@@ -678,21 +710,30 @@ function createAuctionCard(auction) {
 
     const card = document.createElement('div');
     card.className = 'auction-card';
+    if (!hasBalance) {
+        card.style.opacity = '0.6';
+    }
 
     card.innerHTML = `
         <div class="auction-header">
             <div class="auction-title">${auction.name}</div>
             <div class="auction-status">
-                <span class="status-badge ${auction.enabled ? 'status-active' : 'status-inactive'}">
-                    ${auction.enabled ? 'Active' : 'Inactive'}
+                <span class="status-badge ${hasBalance ? 'status-active' : 'status-inactive'}">
+                    ${hasBalance ? 'Available' : 'Sold Out'}
                 </span>
-                ${discount > 0 ? `<span class="discount-badge">${discount}% OFF</span>` : ''}
+                ${discount > 0 && hasBalance ? `<span class="discount-badge">${discount}% OFF</span>` : ''}
             </div>
         </div>
         <div class="auction-details">
             <div class="detail-row">
                 <span class="detail-label">Selling</span>
                 <span class="detail-value">${tokenName}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Available</span>
+                <span class="detail-value" style="color: ${hasBalance ? '#90EE90' : '#FFB6C1'}; font-weight: 700;">
+                    ${availableAmount} ${tokenName}
+                </span>
             </div>
             ${priceDisplay}
             <div class="detail-row">
@@ -704,8 +745,8 @@ function createAuctionCard(auction) {
                 <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${tokenName}</span>
             </div>
         </div>
-        <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!auction.enabled || !walletState.isConnected ? 'disabled' : ''}>
-            ${!walletState.isConnected ? 'Connect Wallet to Bid' : (auction.enabled ? 'Place Bid' : 'Auction Inactive')}
+        <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!hasBalance || !walletState.isConnected ? 'disabled' : ''}>
+            ${!walletState.isConnected ? 'Connect Wallet to Bid' : (hasBalance ? 'Place Bid' : 'Sold Out')}
         </button>
     `;
 
