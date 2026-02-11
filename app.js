@@ -113,27 +113,30 @@ async function connectKeplr() {
         await window.keplr.experimentalSuggestChain(STRIDE_CHAIN_INFO);
         await window.keplr.enable(STRIDE_CHAIN_INFO.chainId);
 
-        const offlineSigner = window.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+        const offlineSigner = window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
         const accounts = await offlineSigner.getAccounts();
 
-        if (window.cosmjsStargate) {
-            const { SigningStargateClient } = window.cosmjsStargate;
-            const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
-
-            walletState = {
-                isConnected: true,
-                address: accounts[0].address,
-                walletType: 'keplr',
-                signingClient: client,
-            };
-        } else {
-            walletState = {
-                isConnected: true,
-                address: accounts[0].address,
-                walletType: 'keplr',
-                signingClient: null,
-            };
+        // Check if CosmJS is loaded
+        if (!window.cosmjsStargate) {
+            alert('CosmJS library not loaded. Please refresh the page and try again.');
+            console.error('window.cosmjsStargate is not available');
+            return;
         }
+
+        const { SigningStargateClient } = window.cosmjsStargate;
+        const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+
+        walletState = {
+            isConnected: true,
+            address: accounts[0].address,
+            walletType: 'keplr',
+            signingClient: client,
+        };
+
+        console.log('Keplr connected successfully', {
+            address: walletState.address,
+            hasSigningClient: !!walletState.signingClient
+        });
 
         updateWalletUI();
         document.getElementById('walletDropdown').classList.remove('active');
@@ -144,7 +147,7 @@ async function connectKeplr() {
         }
     } catch (error) {
         console.error('Failed to connect Keplr:', error);
-        alert('Failed to connect Keplr wallet');
+        alert('Failed to connect Keplr wallet: ' + error.message);
     }
 }
 
@@ -161,24 +164,27 @@ async function connectLeap() {
         const offlineSigner = window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
         const accounts = await offlineSigner.getAccounts();
 
-        if (window.cosmjsStargate) {
-            const { SigningStargateClient } = window.cosmjsStargate;
-            const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
-
-            walletState = {
-                isConnected: true,
-                address: accounts[0].address,
-                walletType: 'leap',
-                signingClient: client,
-            };
-        } else {
-            walletState = {
-                isConnected: true,
-                address: accounts[0].address,
-                walletType: 'leap',
-                signingClient: null,
-            };
+        // Check if CosmJS is loaded
+        if (!window.cosmjsStargate) {
+            alert('CosmJS library not loaded. Please refresh the page and try again.');
+            console.error('window.cosmjsStargate is not available');
+            return;
         }
+
+        const { SigningStargateClient } = window.cosmjsStargate;
+        const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+
+        walletState = {
+            isConnected: true,
+            address: accounts[0].address,
+            walletType: 'leap',
+            signingClient: client,
+        };
+
+        console.log('Leap connected successfully', {
+            address: walletState.address,
+            hasSigningClient: !!walletState.signingClient
+        });
 
         updateWalletUI();
         document.getElementById('walletDropdown').classList.remove('active');
@@ -189,7 +195,7 @@ async function connectLeap() {
         }
     } catch (error) {
         console.error('Failed to connect Leap:', error);
-        alert('Failed to connect Leap wallet');
+        alert('Failed to connect Leap wallet: ' + error.message);
     }
 }
 
@@ -784,8 +790,21 @@ function closeBidModal() {
 // Bid amount input is now disabled, no need for event listener
 
 async function submitBid() {
-    if (!walletState.isConnected || !walletState.signingClient) {
+    console.log('Submit bid called. Wallet state:', {
+        isConnected: walletState.isConnected,
+        hasSigningClient: !!walletState.signingClient,
+        address: walletState.address,
+        walletType: walletState.walletType
+    });
+
+    if (!walletState.isConnected) {
         alert('Please connect your wallet first');
+        return;
+    }
+
+    if (!walletState.signingClient) {
+        alert('Wallet signing client not initialized. Please disconnect and reconnect your wallet.');
+        console.error('signingClient is null despite wallet being connected');
         return;
     }
 
