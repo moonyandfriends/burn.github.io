@@ -25,17 +25,19 @@ No build, test, or lint commands - this is pure HTML/CSS/JavaScript.
 ## Architecture
 
 ### Files Structure
-- **index.html** - Burn stats dashboard with Chart.js visualizations and statistics
-- **auctions.html** - Protocol-Owned Liquidity auction bidding interface
+- **index.html** - Single-page application (SPA) containing both Auctions and Burn Stats
+- **app.js** - All JavaScript functionality for both pages and wallet integration
 - **userburns.html** - Transaction listing page querying Stride RPC directly
 - **static/strdburn.ico** - Favicon
 - **CNAME** - Custom domain configuration for GitHub Pages
 
-### Navigation
-Both pages share a consistent header with:
-- Navigation tabs: "Auctions" and "Burn Stats"
-- Wallet connect button (top-right) supporting Keplr and Leap wallets
-- Responsive design maintaining state across page navigation via localStorage
+### Single-Page Application
+The site uses a SPA architecture where:
+- Header and navigation tabs remain static
+- Content sections switch dynamically without page reload
+- URL hash routing (`#auctions`, `#burn-stats`) maintains navigation state
+- Wallet connection persists across content switches
+- Initial page load shows Burn Stats by default
 
 ### Data Flow
 
@@ -46,13 +48,14 @@ Both pages share a consistent header with:
 4. Calculates daily burn amounts by diffing cumulative totals
 5. Displays via Chart.js with three timeframes (7d, 30d, all time) and two chart types (cumulative, individual)
 
-**Auctions Page (auctions.html)**:
-1. Fetches auctions from `https://stride-api.polkachu.com/stride/auction/v1/auctions`
-2. Falls back to sample data if API unavailable
+**Auctions Section**:
+1. Attempts to fetch auctions from `https://stride-api.polkachu.com/stride/auction/v1/auctions`
+2. **Note**: API endpoint currently returns "Not Implemented" - using sample data for now
 3. Displays auction cards with: status, discount percentage, selling/payment tokens, min bid, total sold
 4. Wallet integration using CosmJS from CDN (@cosmjs/stargate, @cosmjs/proto-signing)
 5. Bid submission creates `MsgPlaceBid` transaction with typeUrl `/stride.auction.MsgPlaceBid`
 6. Modal-based bidding interface with real-time token estimate calculations
+7. Once auction API is live, will automatically switch to real data
 
 **User Burns Page (userburns.html)**:
 - Queries Stride RPC at `https://stride-rpc.polkachu.com` using JSON-RPC
