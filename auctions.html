@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stride Auctions | Protocol-Owned Liquidity Auctions</title>
+    <meta name="description" content="Participate in Stride Protocol-Owned Liquidity auctions. Bid on tokens at discounted prices using STRD.">
+    <meta name="theme-color" content="#e50571">
+    <link rel="icon" type="image/x-icon" href="static/strdburn.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@cosmjs/stargate@0.32.2/build/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@cosmjs/proto-signing@0.32.2/build/index.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #e50571;
+            --maroon: #800020;
+            --dark: #000000;
+            --text: #37352F;
+            --white: #ffffff;
+            --border: #e9e9e7;
+            --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --success: #28a745;
+            --warning: #ffc107;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+            background: linear-gradient(135deg, #A91B60 -100%, var(--dark) 50%, #A91B60 200%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: transparent;
+            padding: 20px 0;
+            margin-bottom: 0px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--white);
+            margin-bottom: 8px;
+            line-height: 1.2;
+            font-family: 'Inter', sans-serif;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .wallet-button {
+            background: linear-gradient(135deg, #e50571, #A91B60);
+            color: var(--white);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(229, 5, 113, 0.3);
+        }
+
+        .wallet-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 5, 113, 0.4);
+        }
+
+        .wallet-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .wallet-dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .wallet-dropdown.active .wallet-dropdown-content {
+            display: block;
+        }
+
+        .wallet-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--dark);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-option:hover {
+            background: rgba(229, 5, 113, 0.1);
+        }
+
+        .wallet-connected {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .wallet-address {
+            color: var(--white);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 0;
+        }
+
+        .nav-tab {
+            padding: 12px 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--white);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        .auction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .auction-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 24px;
+            box-shadow: var(--box-shadow);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .auction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .auction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+
+        .auction-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--white);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .auction-status {
+            display: flex;
+            gap: 6px;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(40, 167, 69, 0.3);
+            color: #90EE90;
+        }
+
+        .status-inactive {
+            background: rgba(220, 53, 69, 0.3);
+            color: #FFB6C1;
+        }
+
+        .discount-badge {
+            background: rgba(40, 167, 69, 0.3);
+            color: #90EE90;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .auction-details {
+            margin: 20px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .detail-value {
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .bid-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #e50571, #A91B60);
+            color: var(--white);
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+        }
+
+        .bid-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 5, 113, 0.4);
+        }
+
+        .bid-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(169, 27, 96, 0.95), rgba(0, 0, 0, 0.95));
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            color: var(--white);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-hint {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+            margin-top: 6px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--white);
+            font-size: 1.1rem;
+        }
+
+        .error-message {
+            background: rgba(220, 53, 69, 0.2);
+            color: #FFB6C1;
+            padding: 16px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .auction-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="main-wrapper">
+        <header class="header">
+            <div class="header-content">
+                <div>
+                    <h1>STRD Dashboard</h1>
+                </div>
+                <div class="wallet-dropdown" id="walletDropdown">
+                    <button class="wallet-button" id="walletButton" onclick="toggleWalletDropdown()">
+                        Connect Wallet
+                    </button>
+                    <div class="wallet-dropdown-content">
+                        <div class="wallet-option" onclick="connectKeplr()">
+                            <span style="font-weight: 700;">K</span> Keplr Wallet
+                        </div>
+                        <div class="wallet-option" onclick="connectLeap()">
+                            <span style="font-weight: 700;">L</span> Leap Wallet
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <a href="auctions.html" class="nav-tab active">Auctions</a>
+            <a href="index.html" class="nav-tab">Burn Stats</a>
+        </nav>
+
+        <div id="auctionsContainer">
+            <div class="loading">Loading auctions...</div>
+        </div>
+    </main>
+
+    <!-- Bid Modal -->
+    <div class="modal" id="bidModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Place Bid</h2>
+                <button class="close-button" onclick="closeBidModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bid Amount (STRD)</label>
+                <input type="number" class="form-input" id="bidAmount" placeholder="Enter amount">
+                <div class="form-hint" id="minBidHint">Minimum bid: 0 STRD</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">You will receive approximately:</label>
+                <div class="detail-value" id="estimatedReceive">0 tokens</div>
+            </div>
+            <button class="bid-button" onclick="submitBid()" id="submitBidButton">
+                Confirm Bid
+            </button>
+            <div id="bidError"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://stride-api.polkachu.com';
+        const RPC_URL = 'https://stride-rpc.polkachu.com';
+
+        const STRIDE_CHAIN_INFO = {
+            chainId: 'stride-1',
+            chainName: 'Stride',
+            rpc: RPC_URL,
+            rest: API_BASE_URL,
+            bip44: { coinType: 118 },
+            bech32Config: {
+                bech32PrefixAccAddr: 'stride',
+                bech32PrefixAccPub: 'stridepub',
+                bech32PrefixValAddr: 'stridevaloper',
+                bech32PrefixValPub: 'stridevaloperpub',
+                bech32PrefixConsAddr: 'stridevalcons',
+                bech32PrefixConsPub: 'stridevalconspub',
+            },
+            currencies: [{
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+            }],
+            feeCurrencies: [{
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+                gasPriceStep: { low: 0.005, average: 0.01, high: 0.03 },
+            }],
+            stakeCurrency: {
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+            },
+            features: ['ibc-transfer', 'ibc-go'],
+        };
+
+        let walletState = {
+            isConnected: false,
+            address: null,
+            walletType: null,
+            signingClient: null,
+        };
+
+        let currentAuction = null;
+        let auctions = [];
+
+        // Wallet functions
+        function toggleWalletDropdown() {
+            if (walletState.isConnected) {
+                disconnect();
+            } else {
+                const dropdown = document.getElementById('walletDropdown');
+                dropdown.classList.toggle('active');
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('walletDropdown');
+            if (!dropdown.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        async function connectKeplr() {
+            try {
+                if (!window.keplr) {
+                    alert('Please install Keplr wallet extension');
+                    return;
+                }
+
+                await window.keplr.experimentalSuggestChain(STRIDE_CHAIN_INFO);
+                await window.keplr.enable(STRIDE_CHAIN_INFO.chainId);
+
+                const offlineSigner = window.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+                const accounts = await offlineSigner.getAccounts();
+
+                const { SigningStargateClient } = window.cosmjsStargate;
+                const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+
+                walletState = {
+                    isConnected: true,
+                    address: accounts[0].address,
+                    walletType: 'keplr',
+                    signingClient: client,
+                };
+
+                updateWalletUI();
+                document.getElementById('walletDropdown').classList.remove('active');
+            } catch (error) {
+                console.error('Failed to connect Keplr:', error);
+                alert('Failed to connect Keplr wallet');
+            }
+        }
+
+        async function connectLeap() {
+            try {
+                if (!window.leap) {
+                    alert('Please install Leap wallet extension');
+                    return;
+                }
+
+                await window.leap.experimentalSuggestChain(STRIDE_CHAIN_INFO);
+                await window.leap.enable(STRIDE_CHAIN_INFO.chainId);
+
+                const offlineSigner = window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+                const accounts = await offlineSigner.getAccounts();
+
+                const { SigningStargateClient } = window.cosmjsStargate;
+                const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+
+                walletState = {
+                    isConnected: true,
+                    address: accounts[0].address,
+                    walletType: 'leap',
+                    signingClient: client,
+                };
+
+                updateWalletUI();
+                document.getElementById('walletDropdown').classList.remove('active');
+            } catch (error) {
+                console.error('Failed to connect Leap:', error);
+                alert('Failed to connect Leap wallet');
+            }
+        }
+
+        function disconnect() {
+            walletState = {
+                isConnected: false,
+                address: null,
+                walletType: null,
+                signingClient: null,
+            };
+            updateWalletUI();
+        }
+
+        function updateWalletUI() {
+            const button = document.getElementById('walletButton');
+
+            if (walletState.isConnected) {
+                const shortAddress = `${walletState.address.slice(0, 10)}...${walletState.address.slice(-8)}`;
+                button.innerHTML = `
+                    <div class="wallet-connected">
+                        <span class="wallet-address">${shortAddress}</span>
+                    </div>
+                `;
+                button.onclick = disconnect;
+            } else {
+                button.textContent = 'Connect Wallet';
+                button.onclick = toggleWalletDropdown;
+            }
+        }
+
+        // Auction functions
+        function formatDenom(denom) {
+            const denomMap = {
+                'ustrd': 'STRD',
+                'uatom': 'ATOM',
+                'uosmo': 'OSMO',
+                'utia': 'TIA',
+            };
+            return denomMap[denom] || denom.replace('u', '').toUpperCase();
+        }
+
+        function formatAmount(amount, decimals = 6) {
+            const value = parseInt(amount) / Math.pow(10, decimals);
+            return value.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 6,
+            });
+        }
+
+        async function fetchAuctions() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/stride/auction/v1/auctions`);
+                const data = await response.json();
+
+                if (data.auctions && data.auctions.length > 0) {
+                    return data.auctions;
+                }
+            } catch (error) {
+                console.error('Failed to fetch auctions from API, using sample data:', error);
+            }
+
+            // Sample auctions if API fails
+            return [
+                {
+                    type: 'FCFS',
+                    name: 'atom-auction',
+                    sellingDenom: 'uatom',
+                    paymentDenom: 'ustrd',
+                    enabled: true,
+                    minPriceMultiplier: '0.95',
+                    minBidAmount: '1000000',
+                    beneficiary: 'stride1example...',
+                    totalPaymentTokenReceived: '500000000',
+                    totalSellingTokenSold: '100000000',
+                },
+                {
+                    type: 'FCFS',
+                    name: 'osmo-auction',
+                    sellingDenom: 'uosmo',
+                    paymentDenom: 'ustrd',
+                    enabled: true,
+                    minPriceMultiplier: '0.90',
+                    minBidAmount: '2000000',
+                    beneficiary: 'stride1example...',
+                    totalPaymentTokenReceived: '300000000',
+                    totalSellingTokenSold: '75000000',
+                }
+            ];
+        }
+
+        async function loadAuctions() {
+            const container = document.getElementById('auctionsContainer');
+            container.innerHTML = '<div class="loading">Loading auctions...</div>';
+
+            auctions = await fetchAuctions();
+
+            if (auctions.length === 0) {
+                container.innerHTML = '<div class="error-message">No auctions available at this time</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.className = 'auction-grid';
+
+            for (const auction of auctions) {
+                const card = createAuctionCard(auction);
+                grid.appendChild(card);
+            }
+
+            container.appendChild(grid);
+        }
+
+        function createAuctionCard(auction) {
+            const discount = ((1 - parseFloat(auction.minPriceMultiplier)) * 100).toFixed(1);
+
+            const card = document.createElement('div');
+            card.className = 'auction-card';
+
+            card.innerHTML = `
+                <div class="auction-header">
+                    <div class="auction-title">${auction.name}</div>
+                    <div class="auction-status">
+                        <span class="status-badge ${auction.enabled ? 'status-active' : 'status-inactive'}">
+                            ${auction.enabled ? 'Active' : 'Inactive'}
+                        </span>
+                        ${discount > 0 ? `<span class="discount-badge">${discount}% OFF</span>` : ''}
+                    </div>
+                </div>
+                <div class="auction-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Selling</span>
+                        <span class="detail-value">${formatDenom(auction.sellingDenom)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Payment</span>
+                        <span class="detail-value">${formatDenom(auction.paymentDenom)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Min Bid</span>
+                        <span class="detail-value">${formatAmount(auction.minBidAmount)} STRD</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Sold</span>
+                        <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${formatDenom(auction.sellingDenom)}</span>
+                    </div>
+                </div>
+                <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!auction.enabled || !walletState.isConnected ? 'disabled' : ''}>
+                    ${!walletState.isConnected ? 'Connect Wallet to Bid' : (auction.enabled ? 'Place Bid' : 'Auction Inactive')}
+                </button>
+            `;
+
+            return card;
+        }
+
+        function openBidModal(auctionName) {
+            currentAuction = auctions.find(a => a.name === auctionName);
+            if (!currentAuction) return;
+
+            document.getElementById('modalTitle').textContent = `Bid on ${currentAuction.name}`;
+            document.getElementById('minBidHint').textContent = `Minimum bid: ${formatAmount(currentAuction.minBidAmount)} STRD`;
+            document.getElementById('bidAmount').value = '';
+            document.getElementById('estimatedReceive').textContent = '0 ' + formatDenom(currentAuction.sellingDenom);
+            document.getElementById('bidError').innerHTML = '';
+
+            document.getElementById('bidModal').classList.add('active');
+        }
+
+        function closeBidModal() {
+            document.getElementById('bidModal').classList.remove('active');
+            currentAuction = null;
+        }
+
+        document.getElementById('bidAmount').addEventListener('input', function(e) {
+            const amount = parseFloat(e.target.value) || 0;
+            const multiplier = parseFloat(currentAuction.minPriceMultiplier);
+
+            // Simplified calculation - actual would depend on oracle prices
+            const estimated = amount * multiplier;
+            document.getElementById('estimatedReceive').textContent =
+                estimated.toFixed(6) + ' ' + formatDenom(currentAuction.sellingDenom);
+        });
+
+        async function submitBid() {
+            if (!walletState.isConnected || !walletState.signingClient) {
+                alert('Please connect your wallet first');
+                return;
+            }
+
+            const bidAmountSTRD = parseFloat(document.getElementById('bidAmount').value);
+            if (!bidAmountSTRD || bidAmountSTRD <= 0) {
+                showBidError('Please enter a valid bid amount');
+                return;
+            }
+
+            const minBidSTRD = parseInt(currentAuction.minBidAmount) / 1000000;
+            if (bidAmountSTRD < minBidSTRD) {
+                showBidError(`Bid must be at least ${minBidSTRD} STRD`);
+                return;
+            }
+
+            const bidAmountMicro = Math.floor(bidAmountSTRD * 1000000).toString();
+
+            try {
+                document.getElementById('submitBidButton').disabled = true;
+                document.getElementById('submitBidButton').textContent = 'Submitting...';
+
+                const msg = {
+                    typeUrl: '/stride.auction.MsgPlaceBid',
+                    value: {
+                        auctionName: currentAuction.name,
+                        bidder: walletState.address,
+                        paymentTokenAmount: bidAmountMicro,
+                    },
+                };
+
+                const fee = {
+                    amount: [{ denom: 'ustrd', amount: '5000' }],
+                    gas: '200000',
+                };
+
+                const result = await walletState.signingClient.signAndBroadcast(
+                    walletState.address,
+                    [msg],
+                    fee,
+                    'Bid placed via STRD Dashboard'
+                );
+
+                if (result.code === 0) {
+                    alert('Bid placed successfully! Transaction hash: ' + result.transactionHash);
+                    closeBidModal();
+                    loadAuctions();
+                } else {
+                    showBidError('Transaction failed: ' + result.rawLog);
+                }
+            } catch (error) {
+                console.error('Failed to submit bid:', error);
+                showBidError('Failed to submit bid: ' + error.message);
+            } finally {
+                document.getElementById('submitBidButton').disabled = false;
+                document.getElementById('submitBidButton').textContent = 'Confirm Bid';
+            }
+        }
+
+        function showBidError(message) {
+            document.getElementById('bidError').innerHTML = `
+                <div class="error-message" style="margin-top: 16px">${message}</div>
+            `;
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            loadAuctions();
+
+            const savedState = localStorage.getItem('walletState');
+            if (savedState) {
+                try {
+                    const saved = JSON.parse(savedState);
+                    walletState.isConnected = saved.isConnected;
+                    walletState.address = saved.address;
+                    walletState.walletType = saved.walletType;
+                    updateWalletUI();
+                } catch (e) {
+                    console.error('Failed to restore wallet state:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

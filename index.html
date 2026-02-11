@@ -119,7 +119,11 @@
         }
 
         .header-content {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
         }
 
         .header h1 {
@@ -130,6 +134,118 @@
             line-height: 1.2;
             font-family: 'Inter', sans-serif;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .wallet-button {
+            background: linear-gradient(135deg, #e50571, #A91B60);
+            color: var(--white);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(229, 5, 113, 0.3);
+        }
+
+        .wallet-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 5, 113, 0.4);
+        }
+
+        .wallet-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .wallet-dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .wallet-dropdown.active .wallet-dropdown-content {
+            display: block;
+        }
+
+        .wallet-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--dark);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-option:hover {
+            background: rgba(229, 5, 113, 0.1);
+        }
+
+        .wallet-connected {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        .wallet-address {
+            color: var(--white);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .wallet-balance {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.75rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 0;
+        }
+
+        .nav-tab {
+            padding: 12px 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--white);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
         }
 
         .header .subtitle {
@@ -399,9 +515,29 @@
     <main class="main-wrapper">
         <header class="header">
             <div class="header-content">
-                <h1>STRD Burn Dashboard</h1>
+                <div>
+                    <h1>STRD Dashboard</h1>
+                </div>
+                <div class="wallet-dropdown" id="walletDropdown">
+                    <button class="wallet-button" id="walletButton" onclick="toggleWalletDropdown()">
+                        Connect Wallet
+                    </button>
+                    <div class="wallet-dropdown-content">
+                        <div class="wallet-option" onclick="connectKeplr()">
+                            <span style="font-weight: 700;">K</span> Keplr Wallet
+                        </div>
+                        <div class="wallet-option" onclick="connectLeap()">
+                            <span style="font-weight: 700;">L</span> Leap Wallet
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
+
+        <nav class="nav-tabs">
+            <a href="auctions.html" class="nav-tab">Auctions</a>
+            <a href="index.html" class="nav-tab active">Burn Stats</a>
+        </nav>
 
 
 
@@ -715,6 +851,167 @@
         }
 
         document.addEventListener('DOMContentLoaded', init);
+
+        // Wallet connection functionality
+        const STRIDE_CHAIN_INFO = {
+            chainId: 'stride-1',
+            chainName: 'Stride',
+            rpc: 'https://stride-rpc.polkachu.com',
+            rest: 'https://stride-api.polkachu.com',
+            bip44: { coinType: 118 },
+            bech32Config: {
+                bech32PrefixAccAddr: 'stride',
+                bech32PrefixAccPub: 'stridepub',
+                bech32PrefixValAddr: 'stridevaloper',
+                bech32PrefixValPub: 'stridevaloperpub',
+                bech32PrefixConsAddr: 'stridevalcons',
+                bech32PrefixConsPub: 'stridevalconspub',
+            },
+            currencies: [{
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+            }],
+            feeCurrencies: [{
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+                gasPriceStep: { low: 0.005, average: 0.01, high: 0.03 },
+            }],
+            stakeCurrency: {
+                coinDenom: 'STRD',
+                coinMinimalDenom: 'ustrd',
+                coinDecimals: 6,
+                coinGeckoId: 'stride',
+            },
+            features: ['ibc-transfer', 'ibc-go'],
+        };
+
+        let walletState = {
+            isConnected: false,
+            address: null,
+            walletType: null,
+        };
+
+        function toggleWalletDropdown() {
+            if (walletState.isConnected) {
+                disconnect();
+            } else {
+                const dropdown = document.getElementById('walletDropdown');
+                dropdown.classList.toggle('active');
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('walletDropdown');
+            if (!dropdown.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        async function connectKeplr() {
+            try {
+                if (!window.keplr) {
+                    alert('Please install Keplr wallet extension');
+                    return;
+                }
+
+                await window.keplr.experimentalSuggestChain(STRIDE_CHAIN_INFO);
+                await window.keplr.enable(STRIDE_CHAIN_INFO.chainId);
+
+                const offlineSigner = window.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+                const accounts = await offlineSigner.getAccounts();
+
+                walletState = {
+                    isConnected: true,
+                    address: accounts[0].address,
+                    walletType: 'keplr',
+                };
+
+                updateWalletUI();
+                document.getElementById('walletDropdown').classList.remove('active');
+            } catch (error) {
+                console.error('Failed to connect Keplr:', error);
+                alert('Failed to connect Keplr wallet');
+            }
+        }
+
+        async function connectLeap() {
+            try {
+                if (!window.leap) {
+                    alert('Please install Leap wallet extension');
+                    return;
+                }
+
+                await window.leap.experimentalSuggestChain(STRIDE_CHAIN_INFO);
+                await window.leap.enable(STRIDE_CHAIN_INFO.chainId);
+
+                const offlineSigner = window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+                const accounts = await offlineSigner.getAccounts();
+
+                walletState = {
+                    isConnected: true,
+                    address: accounts[0].address,
+                    walletType: 'leap',
+                };
+
+                updateWalletUI();
+                document.getElementById('walletDropdown').classList.remove('active');
+            } catch (error) {
+                console.error('Failed to connect Leap:', error);
+                alert('Failed to connect Leap wallet');
+            }
+        }
+
+        function disconnect() {
+            walletState = {
+                isConnected: false,
+                address: null,
+                walletType: null,
+            };
+            updateWalletUI();
+        }
+
+        function updateWalletUI() {
+            const button = document.getElementById('walletButton');
+            const dropdown = document.getElementById('walletDropdown');
+
+            if (walletState.isConnected) {
+                const shortAddress = `${walletState.address.slice(0, 10)}...${walletState.address.slice(-8)}`;
+                button.innerHTML = `
+                    <div class="wallet-connected">
+                        <span class="wallet-address">${shortAddress}</span>
+                    </div>
+                `;
+                button.onclick = disconnect;
+            } else {
+                button.textContent = 'Connect Wallet';
+                button.onclick = toggleWalletDropdown;
+            }
+
+            // Save to localStorage
+            if (walletState.isConnected) {
+                localStorage.setItem('walletState', JSON.stringify(walletState));
+            } else {
+                localStorage.removeItem('walletState');
+            }
+        }
+
+        // Restore wallet state on page load
+        window.addEventListener('load', () => {
+            const savedState = localStorage.getItem('walletState');
+            if (savedState) {
+                try {
+                    walletState = JSON.parse(savedState);
+                    updateWalletUI();
+                } catch (e) {
+                    console.error('Failed to restore wallet state:', e);
+                }
+            }
+        });
     </script>
 </body>
 </html>
