@@ -546,6 +546,51 @@ const IBC_DENOM_MAP = {
     'ibc/1A2271226209D309902AFF4F21BD21237CB514DD24EA2EE0423BF74C6135D8B8': 'UMEE',
 };
 
+// Token to CoinGecko ID mapping
+const COINGECKO_ID_MAP = {
+    'ATOM': 'cosmos',
+    'OSMO': 'osmosis',
+    'TIA': 'celestia',
+    'STRD': 'stride',
+    'JUNO': 'juno-network',
+    'INJ': 'injective-protocol',
+    'DYDX': 'dydx-chain',
+    'EVMOS': 'evmos',
+    'STARS': 'stargaze',
+    'LUNA': 'terra-luna-2',
+    'BAND': 'band-protocol',
+    'SAGA': 'saga-2',
+    'CMDX': 'comdex',
+    'DYM': 'dymension',
+    'SOMM': 'sommelier',
+    'UMEE': 'umee',
+    'ISLM': 'islamic-coin',
+};
+
+let oraclePrices = {};
+
+async function fetchOraclePrices() {
+    try {
+        // Get all unique CoinGecko IDs from active tokens
+        const ids = Object.values(COINGECKO_ID_MAP).join(',');
+        const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        const data = await response.json();
+
+        // Convert to our token name format
+        const prices = {};
+        for (const [token, geckoId] of Object.entries(COINGECKO_ID_MAP)) {
+            if (data[geckoId] && data[geckoId].usd) {
+                prices[token] = data[geckoId].usd;
+            }
+        }
+
+        return prices;
+    } catch (error) {
+        console.error('Failed to fetch oracle prices:', error);
+        return {};
+    }
+}
+
 async function fetchAuctions() {
     try {
         const response = await fetch(`${API_BASE_URL}/stride/auction/auctions`);
@@ -575,9 +620,16 @@ async function fetchAuctions() {
 
 async function loadAuctions() {
     const container = document.getElementById('auctionsContainer');
-    container.innerHTML = '<div class="loading">Loading auctions...</div>';
+    container.innerHTML = '<div class="loading">Loading auctions and prices...</div>';
 
-    auctions = await fetchAuctions();
+    // Fetch both auctions and oracle prices in parallel
+    const [auctionData, prices] = await Promise.all([
+        fetchAuctions(),
+        fetchOraclePrices()
+    ]);
+
+    auctions = auctionData;
+    oraclePrices = prices;
 
     if (auctions.length === 0) {
         container.innerHTML = '<div class="error-message">No auctions available at this time</div>';
@@ -598,10 +650,31 @@ async function loadAuctions() {
 
 function createAuctionCard(auction) {
     const discount = ((1 - parseFloat(auction.minPriceMultiplier)) * 100).toFixed(1);
+    const tokenName = formatDenom(auction.sellingDenom);
 
     // Format min bid - if it's 1, it means 1 micro-STRD (0.000001 STRD)
     const minBidValue = parseFloat(auction.minBidAmount);
     const minBidDisplay = minBidValue <= 1 ? '0.000001' : formatAmount(auction.minBidAmount);
+
+    // Calculate STRD cost per token
+    let priceDisplay = '';
+    if (oraclePrices[tokenName] && oraclePrices['STRD']) {
+        const tokenOraclePrice = oraclePrices[tokenName];
+        const auctionPrice = tokenOraclePrice * parseFloat(auction.minPriceMultiplier);
+        const strdPrice = oraclePrices['STRD'];
+        const strdPerToken = auctionPrice / strdPrice;
+
+        priceDisplay = `
+            <div class="detail-row">
+                <span class="detail-label">Oracle Price</span>
+                <span class="detail-value">$${tokenOraclePrice.toFixed(4)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Cost per ${tokenName}</span>
+                <span class="detail-value" style="color: #90EE90; font-weight: 700;">${strdPerToken.toFixed(2)} STRD</span>
+            </div>
+        `;
+    }
 
     const card = document.createElement('div');
     card.className = 'auction-card';
@@ -619,19 +692,16 @@ function createAuctionCard(auction) {
         <div class="auction-details">
             <div class="detail-row">
                 <span class="detail-label">Selling</span>
-                <span class="detail-value">${formatDenom(auction.sellingDenom)}</span>
+                <span class="detail-value">${tokenName}</span>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">Payment</span>
-                <span class="detail-value">${formatDenom(auction.paymentDenom)}</span>
-            </div>
+            ${priceDisplay}
             <div class="detail-row">
                 <span class="detail-label">Min Bid</span>
                 <span class="detail-value">${minBidDisplay} STRD</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Total Sold</span>
-                <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${formatDenom(auction.sellingDenom)}</span>
+                <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${tokenName}</span>
             </div>
         </div>
         <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!auction.enabled || !walletState.isConnected ? 'disabled' : ''}>
@@ -670,13 +740,25 @@ document.addEventListener('DOMContentLoaded', function() {
         bidAmountInput.addEventListener('input', function(e) {
             if (!currentAuction) return;
 
-            const amount = parseFloat(e.target.value) || 0;
-            const multiplier = parseFloat(currentAuction.minPriceMultiplier);
+            const strdAmount = parseFloat(e.target.value) || 0;
+            const tokenName = formatDenom(currentAuction.sellingDenom);
 
-            // Simplified calculation - actual would depend on oracle prices
-            const estimated = amount * multiplier;
-            document.getElementById('estimatedReceive').textContent =
-                estimated.toFixed(6) + ' ' + formatDenom(currentAuction.sellingDenom);
+            // Calculate based on oracle prices
+            if (oraclePrices[tokenName] && oraclePrices['STRD']) {
+                const tokenOraclePrice = oraclePrices[tokenName];
+                const auctionPrice = tokenOraclePrice * parseFloat(currentAuction.minPriceMultiplier);
+                const strdPrice = oraclePrices['STRD'];
+                const strdPerToken = auctionPrice / strdPrice;
+
+                // How many tokens can be bought with the STRD amount
+                const tokensReceived = strdAmount / strdPerToken;
+
+                document.getElementById('estimatedReceive').textContent =
+                    tokensReceived.toFixed(6) + ' ' + tokenName;
+            } else {
+                // Fallback if no price data
+                document.getElementById('estimatedReceive').textContent = '0 ' + tokenName;
+            }
         });
     }
 });
