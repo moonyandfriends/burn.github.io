@@ -43,7 +43,7 @@ let walletState = {
     isConnected: false,
     address: null,
     walletType: null,
-    signingClient: null,
+    wallet: null,
 };
 
 let currentPage = 'burn-stats';
@@ -113,29 +113,18 @@ async function connectKeplr() {
         await window.keplr.experimentalSuggestChain(STRIDE_CHAIN_INFO);
         await window.keplr.enable(STRIDE_CHAIN_INFO.chainId);
 
-        const offlineSigner = window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
-        const accounts = await offlineSigner.getAccounts();
-
-        // Check if CosmJS is loaded
-        if (!window.cosmjsStargate) {
-            alert('CosmJS library not loaded. Please refresh the page and try again.');
-            console.error('window.cosmjsStargate is not available');
-            return;
-        }
-
-        const { SigningStargateClient } = window.cosmjsStargate;
-        const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+        const key = await window.keplr.getKey(STRIDE_CHAIN_INFO.chainId);
 
         walletState = {
             isConnected: true,
-            address: accounts[0].address,
+            address: key.bech32Address,
             walletType: 'keplr',
-            signingClient: client,
+            wallet: window.keplr,
         };
 
         console.log('Keplr connected successfully', {
             address: walletState.address,
-            hasSigningClient: !!walletState.signingClient
+            hasWallet: !!walletState.wallet
         });
 
         updateWalletUI();
@@ -161,29 +150,18 @@ async function connectLeap() {
         await window.leap.experimentalSuggestChain(STRIDE_CHAIN_INFO);
         await window.leap.enable(STRIDE_CHAIN_INFO.chainId);
 
-        const offlineSigner = window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
-        const accounts = await offlineSigner.getAccounts();
-
-        // Check if CosmJS is loaded
-        if (!window.cosmjsStargate) {
-            alert('CosmJS library not loaded. Please refresh the page and try again.');
-            console.error('window.cosmjsStargate is not available');
-            return;
-        }
-
-        const { SigningStargateClient } = window.cosmjsStargate;
-        const client = await SigningStargateClient.connectWithSigner(RPC_URL, offlineSigner);
+        const key = await window.leap.getKey(STRIDE_CHAIN_INFO.chainId);
 
         walletState = {
             isConnected: true,
-            address: accounts[0].address,
+            address: key.bech32Address,
             walletType: 'leap',
-            signingClient: client,
+            wallet: window.leap,
         };
 
         console.log('Leap connected successfully', {
             address: walletState.address,
-            hasSigningClient: !!walletState.signingClient
+            hasWallet: !!walletState.wallet
         });
 
         updateWalletUI();
@@ -204,7 +182,7 @@ function disconnect() {
         isConnected: false,
         address: null,
         walletType: null,
-        signingClient: null,
+        wallet: null,
     };
     updateWalletUI();
 
@@ -792,19 +770,13 @@ function closeBidModal() {
 async function submitBid() {
     console.log('Submit bid called. Wallet state:', {
         isConnected: walletState.isConnected,
-        hasSigningClient: !!walletState.signingClient,
+        hasWallet: !!walletState.wallet,
         address: walletState.address,
         walletType: walletState.walletType
     });
 
-    if (!walletState.isConnected) {
+    if (!walletState.isConnected || !walletState.wallet) {
         alert('Please connect your wallet first');
-        return;
-    }
-
-    if (!walletState.signingClient) {
-        alert('Wallet signing client not initialized. Please disconnect and reconnect your wallet.');
-        console.error('signingClient is null despite wallet being connected');
         return;
     }
 
@@ -837,12 +809,13 @@ async function submitBid() {
         document.getElementById('submitBidButton').disabled = true;
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
+        // Use Keplr/Leap's built-in transaction signing
         const msg = {
-            typeUrl: '/stride.auction.MsgPlaceBid',
+            type: 'stride/auction/MsgPlaceBid',
             value: {
-                auctionName: currentAuction.name,
+                auction_name: currentAuction.name,
                 bidder: walletState.address,
-                paymentTokenAmount: bidAmountMicro,
+                payment_token_amount: bidAmountMicro,
             },
         };
 
@@ -851,19 +824,21 @@ async function submitBid() {
             gas: '200000',
         };
 
-        const result = await walletState.signingClient.signAndBroadcast(
+        const result = await walletState.wallet.signAndBroadcast(
+            STRIDE_CHAIN_INFO.chainId,
             walletState.address,
             [msg],
             fee,
             'Bid placed via STRD Dashboard'
         );
 
-        if (result.code === 0) {
-            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
+        if (result.code === 0 || result.txhash) {
+            const txHash = result.transactionHash || result.txhash;
+            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${txHash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            showBidError('Transaction failed: ' + result.rawLog);
+            showBidError('Transaction failed: ' + (result.rawLog || result.raw_log || 'Unknown error'));
         }
     } catch (error) {
         console.error('Failed to submit bid:', error);
