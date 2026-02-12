@@ -519,6 +519,19 @@ const IBC_DENOM_MAP = {
     'ibc/1A2271226209D309902AFF4F21BD21237CB514DD24EA2EE0423BF74C6135D8B8': 'UMEE',
 };
 
+// Token decimals (default is 6, these tokens use 18)
+const TOKEN_DECIMALS = {
+    'DYDX': 18,
+    'EVMOS': 18,
+    'ISLM': 18,
+    'INJ': 18,
+    'DYM': 18,
+};
+
+function getDecimals(tokenName) {
+    return TOKEN_DECIMALS[tokenName] || 6;
+}
+
 // Token to CoinGecko ID mapping
 const COINGECKO_ID_MAP = {
     'ATOM': 'cosmos',
@@ -705,7 +718,8 @@ function createAuctionCard(auction) {
     // Check available balance
     const availableBalance = auctionBalances[auction.sellingDenom] || '0';
     const hasBalance = parseInt(availableBalance) > 0;
-    const availableAmount = formatAmount(availableBalance);
+    const decimals = getDecimals(tokenName);
+    const availableAmount = formatAmount(availableBalance, decimals);
 
     // Format min bid - if it's 1, it means 1 micro-STRD (0.000001 STRD)
     const minBidValue = parseFloat(auction.minBidAmount);
@@ -757,7 +771,7 @@ function createAuctionCard(auction) {
             ${priceDisplay}
             <div class="detail-row">
                 <span class="detail-label">Total Sold</span>
-                <span class="detail-value">${formatAmount(auction.totalSellingTokenSold)} ${tokenName}</span>
+                <span class="detail-value">${formatAmount(auction.totalSellingTokenSold, decimals)} ${tokenName}</span>
             </div>
         </div>
         <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!hasBalance || !walletState.isConnected ? 'disabled' : ''}>
@@ -774,7 +788,8 @@ function openBidModal(auctionName) {
 
     const tokenName = formatDenom(currentAuction.sellingDenom);
     const availableBalance = auctionBalances[currentAuction.sellingDenom] || '0';
-    const availableTokens = parseFloat(availableBalance) / 1000000; // Convert from micro to normal units
+    const decimals = getDecimals(tokenName);
+    const availableTokens = parseFloat(availableBalance) / Math.pow(10, decimals);
 
     // Calculate STRD needed for full amount
     let strdNeeded = 0;
@@ -825,7 +840,8 @@ async function submitBid() {
     }
 
     // Calculate STRD needed for full available amount
-    const availableTokens = parseFloat(availableBalance) / 1000000;
+    const decimals = getDecimals(tokenName);
+    const availableTokens = parseFloat(availableBalance) / Math.pow(10, decimals);
     let strdNeeded = 0;
 
     if (oraclePrices[tokenName] && oraclePrices['STRD']) {
