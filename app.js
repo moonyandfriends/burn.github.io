@@ -845,20 +845,33 @@ async function submitBid() {
         document.getElementById('submitBidButton').disabled = true;
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
+        console.log('Starting bid submission...');
+        console.log('CosmJS available:', !!window.cosmjs);
+        console.log('SigningStargateClient available:', !!window.cosmjs?.SigningStargateClient);
+
         // Wait for CosmJS to load
+        let attempts = 0;
         while (!window.cosmjs || !window.cosmjs.SigningStargateClient) {
+            if (attempts++ > 50) {
+                throw new Error('CosmJS library failed to load. Please refresh the page.');
+            }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        console.log('CosmJS loaded, getting offline signer...');
+
         // Get the offline signer from the wallet
         const offlineSigner = await walletState.wallet.getOfflineSignerAuto(STRIDE_CHAIN_INFO.chainId);
+        console.log('Got offline signer:', !!offlineSigner);
 
+        console.log('Creating signing client...');
         // Create signing client
         const client = await window.cosmjs.SigningStargateClient.connectWithSigner(
             RPC_URL,
             offlineSigner,
             { gasPrice: { amount: '0.025', denom: 'ustrd' } }
         );
+        console.log('Client created:', !!client);
 
         // Create the message
         const msg = {
@@ -870,11 +883,14 @@ async function submitBid() {
             },
         };
 
+        console.log('Message created:', msg);
+
         const fee = {
             amount: [{ denom: 'ustrd', amount: '5000' }],
             gas: '200000',
         };
 
+        console.log('Calling signAndBroadcast...');
         // Sign and broadcast
         const result = await client.signAndBroadcast(
             walletState.address,
@@ -882,6 +898,8 @@ async function submitBid() {
             fee,
             'Bid placed via STRD Dashboard'
         );
+
+        console.log('Result:', result);
 
         if (result.code === 0) {
             alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
