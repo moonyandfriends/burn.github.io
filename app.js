@@ -846,67 +846,83 @@ async function submitBid() {
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
         console.log('Starting bid submission...');
-        console.log('CosmJS available:', !!window.cosmjs);
-        console.log('SigningStargateClient available:', !!window.cosmjs?.SigningStargateClient);
 
-        // Wait for CosmJS to load
-        let attempts = 0;
-        while (!window.cosmjs || !window.cosmjs.SigningStargateClient) {
-            if (attempts++ > 50) {
-                throw new Error('CosmJS library failed to load. Please refresh the page.');
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        // Get account info
+        const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
+        const accountData = await accountResponse.json();
+        const accountNumber = String(accountData.account.account_number);
+        const sequence = String(accountData.account.sequence);
 
-        console.log('CosmJS loaded, getting offline signer...');
+        console.log('Account info:', { accountNumber, sequence });
 
-        // Get the offline signer from the wallet
-        const offlineSigner = await walletState.wallet.getOfflineSignerAuto(STRIDE_CHAIN_INFO.chainId);
-        console.log('Got offline signer:', !!offlineSigner);
-
-        console.log('Creating signing client...');
-        // Create signing client
-        const client = await window.cosmjs.SigningStargateClient.connectWithSigner(
-            RPC_URL,
-            offlineSigner,
-            { gasPrice: { amount: '0.025', denom: 'ustrd' } }
-        );
-        console.log('Client created:', !!client);
-
-        // Create the message
-        const msg = {
-            typeUrl: '/stride.auction.MsgPlaceBid',
+        // Create Amino message
+        const aminoMsg = {
+            type: 'stride/auction/MsgPlaceBid',
             value: {
-                auctionName: currentAuction.name,
+                auction_name: currentAuction.name,
                 bidder: walletState.address,
-                paymentTokenAmount: bidAmountMicro,
+                payment_token_amount: bidAmountMicro,
             },
         };
-
-        console.log('Message created:', msg);
 
         const fee = {
             amount: [{ denom: 'ustrd', amount: '5000' }],
             gas: '200000',
         };
 
-        console.log('Calling signAndBroadcast...');
-        // Sign and broadcast
-        const result = await client.signAndBroadcast(
+        const signDoc = {
+            chain_id: STRIDE_CHAIN_INFO.chainId,
+            account_number: accountNumber,
+            sequence: sequence,
+            fee: fee,
+            msgs: [aminoMsg],
+            memo: 'Bid placed via STRD Dashboard',
+        };
+
+        console.log('Calling signAmino...');
+
+        // Sign with Amino
+        const signed = await walletState.wallet.signAmino(
+            STRIDE_CHAIN_INFO.chainId,
             walletState.address,
-            [msg],
-            fee,
-            'Bid placed via STRD Dashboard'
+            signDoc
         );
 
-        console.log('Result:', result);
+        console.log('Transaction signed successfully');
 
-        if (result.code === 0) {
-            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
+        // Construct StdTx for broadcast
+        const stdTx = {
+            msg: signed.signed.msgs,
+            fee: signed.signed.fee,
+            signatures: [{
+                pub_key: signed.signature.pub_key,
+                signature: signed.signature.signature,
+            }],
+            memo: signed.signed.memo,
+        };
+
+        console.log('Broadcasting transaction...');
+
+        // Try broadcasting directly to Tendermint RPC with Amino-encoded tx
+        const txString = JSON.stringify(stdTx);
+        const encoder = new TextEncoder();
+        const txBytes = encoder.encode(txString);
+        const txBase64 = btoa(String.fromCharCode.apply(null, txBytes));
+
+        const rpcResponse = await fetch(`${RPC_URL}/broadcast_tx_sync?tx=0x${Array.from(txBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`, {
+            method: 'GET',
+        });
+
+        const result = await rpcResponse.json();
+        console.log('Broadcast result:', result);
+
+        if (result.result && result.result.code === 0) {
+            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.result.hash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            showBidError('Transaction failed: ' + (result.rawLog || 'Unknown error'));
+            const errorMsg = result.result?.log || result.error?.data || 'Unknown error';
+            showBidError('Transaction failed: ' + errorMsg);
         }
     } catch (error) {
         console.error('Failed to submit bid:', error);

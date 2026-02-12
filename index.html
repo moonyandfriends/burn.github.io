@@ -722,19 +722,6 @@
         </div>
     </div>
 
-    <script type="module">
-        // Import CosmJS Stargate client for complete transaction handling
-        import { SigningStargateClient } from 'https://esm.sh/@cosmjs/stargate@0.32.3';
-        import { Registry } from 'https://esm.sh/@cosmjs/proto-signing@0.32.3';
-
-        // Make available globally
-        window.cosmjs = {
-            SigningStargateClient,
-            Registry
-        };
-
-        console.log('CosmJS loaded successfully');
-    </script>
     <script src="app.js"></script>
 </body>
 </html>
