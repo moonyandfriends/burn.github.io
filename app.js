@@ -851,22 +851,36 @@ async function submitBid() {
         const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
         const accountData = await accountResponse.json();
 
-        console.log('Full account data:', accountData);
+        // Wait for CosmJS to load first
+        let attempts = 0;
+        while (!window.CosmJS || !window.CosmJS.SigningStargateClient) {
+            if (attempts++ > 50) {
+                showBidError('CosmJS library not loaded. Please refresh the page.');
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
-        // Handle different account types (BaseAccount, ModuleAccount, etc.)
-        const account = accountData.account.base_account || accountData.account;
-        const accountNumber = String(account.account_number || '0');
-        const sequence = String(account.sequence || '0');
+        console.log('CosmJS loaded, creating client...');
 
-        console.log('Account info:', { accountNumber, sequence });
+        // Get offline signer
+        const offlineSigner = window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
 
-        // Create Amino message
-        const aminoMsg = {
-            type: 'stride/auction/MsgPlaceBid',
+        // Create signing client
+        const client = await window.CosmJS.SigningStargateClient.connectWithSigner(
+            RPC_URL,
+            offlineSigner
+        );
+
+        console.log('Client created, preparing message...');
+
+        // Create the protobuf message
+        const msg = {
+            typeUrl: '/stride.auction.MsgPlaceBid',
             value: {
-                auction_name: currentAuction.name,
+                auctionName: currentAuction.name,
                 bidder: walletState.address,
-                payment_token_amount: bidAmountMicro,
+                paymentTokenAmount: bidAmountMicro,
             },
         };
 
@@ -875,63 +889,25 @@ async function submitBid() {
             gas: '200000',
         };
 
-        const signDoc = {
-            chain_id: STRIDE_CHAIN_INFO.chainId,
-            account_number: accountNumber,
-            sequence: sequence,
-            fee: fee,
-            msgs: [aminoMsg],
-            memo: 'Bid placed via STRD Dashboard',
-        };
+        console.log('Signing and broadcasting...');
 
-        console.log('Calling signAmino...');
-
-        // Sign with Amino
-        const signed = await walletState.wallet.signAmino(
-            STRIDE_CHAIN_INFO.chainId,
+        // This will trigger the wallet popup again and handle everything properly
+        const result = await client.signAndBroadcast(
             walletState.address,
-            signDoc
+            [msg],
+            fee,
+            'Bid placed via STRD Dashboard'
         );
 
-        console.log('Transaction signed successfully');
+        console.log('Result:', result);
 
-        // Construct StdTx for broadcast
-        const stdTx = {
-            msg: signed.signed.msgs,
-            fee: signed.signed.fee,
-            signatures: [{
-                pub_key: signed.signature.pub_key,
-                signature: signed.signature.signature,
-            }],
-            memo: signed.signed.memo,
-        };
-
-        console.log('Broadcasting transaction...');
-
-        // Use Keplr Wallet's broadcast helper if available
-        if (window.keplrWalletCosmos) {
-            try {
-                console.log('Using Keplr Wallet Cosmos library');
-                const result = await window.keplrWalletCosmos.broadcastTx(
-                    RPC_URL,
-                    stdTx,
-                    'sync'
-                );
-                console.log('Keplr broadcast result:', result);
-
-                if (result && result.code === 0) {
-                    alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.txhash || result.hash}`);
-                    closeBidModal();
-                    loadAuctions();
-                    return;
-                }
-            } catch (e) {
-                console.error('Keplr broadcast failed:', e);
-            }
+        if (result.code === 0) {
+            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
+            closeBidModal();
+            loadAuctions();
+        } else {
+            showBidError('Transaction failed: ' + (result.rawLog || 'Unknown error'));
         }
-
-        // Fallback: show error that we can't broadcast
-        showBidError('Unable to broadcast transaction automatically. Transaction was signed but encoding for broadcast is not working. Please try again or contact support.');
     } catch (error) {
         console.error('Failed to submit bid:', error);
         showBidError('Failed to submit bid: ' + error.message);
