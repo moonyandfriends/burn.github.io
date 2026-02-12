@@ -850,8 +850,13 @@ async function submitBid() {
         // Get account info
         const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
         const accountData = await accountResponse.json();
-        const accountNumber = String(accountData.account.account_number);
-        const sequence = String(accountData.account.sequence);
+
+        console.log('Full account data:', accountData);
+
+        // Handle different account types (BaseAccount, ModuleAccount, etc.)
+        const account = accountData.account.base_account || accountData.account;
+        const accountNumber = String(account.account_number || '0');
+        const sequence = String(account.sequence || '0');
 
         console.log('Account info:', { accountNumber, sequence });
 
@@ -903,27 +908,30 @@ async function submitBid() {
 
         console.log('Broadcasting transaction...');
 
-        // Try broadcasting directly to Tendermint RPC with Amino-encoded tx
-        const txString = JSON.stringify(stdTx);
-        const encoder = new TextEncoder();
-        const txBytes = encoder.encode(txString);
-        const txBase64 = btoa(String.fromCharCode.apply(null, txBytes));
+        // Use Keplr Wallet's broadcast helper if available
+        if (window.keplrWalletCosmos) {
+            try {
+                console.log('Using Keplr Wallet Cosmos library');
+                const result = await window.keplrWalletCosmos.broadcastTx(
+                    RPC_URL,
+                    stdTx,
+                    'sync'
+                );
+                console.log('Keplr broadcast result:', result);
 
-        const rpcResponse = await fetch(`${RPC_URL}/broadcast_tx_sync?tx=0x${Array.from(txBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`, {
-            method: 'GET',
-        });
-
-        const result = await rpcResponse.json();
-        console.log('Broadcast result:', result);
-
-        if (result.result && result.result.code === 0) {
-            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.result.hash}`);
-            closeBidModal();
-            loadAuctions();
-        } else {
-            const errorMsg = result.result?.log || result.error?.data || 'Unknown error';
-            showBidError('Transaction failed: ' + errorMsg);
+                if (result && result.code === 0) {
+                    alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.txhash || result.hash}`);
+                    closeBidModal();
+                    loadAuctions();
+                    return;
+                }
+            } catch (e) {
+                console.error('Keplr broadcast failed:', e);
+            }
         }
+
+        // Fallback: show error that we can't broadcast
+        showBidError('Unable to broadcast transaction automatically. Transaction was signed but encoding for broadcast is not working. Please try again or contact support.');
     } catch (error) {
         console.error('Failed to submit bid:', error);
         showBidError('Failed to submit bid: ' + error.message);
