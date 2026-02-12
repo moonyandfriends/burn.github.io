@@ -194,6 +194,7 @@ function disconnect() {
 
 function updateWalletUI() {
     const button = document.getElementById('walletButton');
+    const balanceEl = document.getElementById('strdBalance');
 
     if (walletState.isConnected) {
         const shortAddress = `${walletState.address.slice(0, 10)}...${walletState.address.slice(-8)}`;
@@ -203,9 +204,30 @@ function updateWalletUI() {
             </div>
         `;
         button.onclick = disconnect;
+        fetchStrdBalance();
     } else {
         button.textContent = 'Connect Wallet';
         button.onclick = toggleWalletDropdown;
+        if (balanceEl) {
+            balanceEl.style.display = 'none';
+        }
+    }
+}
+
+async function fetchStrdBalance() {
+    if (!walletState.isConnected || !walletState.address) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/cosmos/bank/v1beta1/balances/${walletState.address}/by_denom?denom=ustrd`);
+        const data = await response.json();
+        const amount = data.balance ? data.balance.amount : '0';
+        const strd = (parseFloat(amount) / 1000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const balanceEl = document.getElementById('strdBalance');
+        if (balanceEl) {
+            balanceEl.textContent = `${strd} STRD`;
+            balanceEl.style.display = 'inline';
+        }
+    } catch (error) {
+        console.error('Failed to fetch STRD balance:', error);
     }
 }
 

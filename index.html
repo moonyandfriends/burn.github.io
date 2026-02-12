@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STRD Dashboard | Stride Protocol</title>
+    <title>STRD Burn Dashboard | Stride Protocol</title>
     <meta name="description" content="Real-time STRD token burn tracking and Protocol-Owned Liquidity auctions for Stride blockchain.">
     <meta name="theme-color" content="#e50571">
     <link rel="icon" type="image/x-icon" href="static/strdburn.ico">
@@ -371,7 +371,6 @@
         }
 
         .auction-card:hover {
-            transform: translateY(-4px);
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
         }
 
@@ -622,8 +621,10 @@
         <header class="header">
             <div class="header-content">
                 <div>
-                    <h1>STRD Dashboard</h1>
+                    <h1>STRD Burn Dashboard</h1>
                 </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="strdBalance" style="color: var(--white); font-weight: 600; font-size: 0.9rem; display: none;"></span>
                 <div class="wallet-dropdown" id="walletDropdown">
                     <button class="wallet-button" id="walletButton" onclick="toggleWalletDropdown()">
                         Connect Wallet
@@ -636,6 +637,7 @@
                             <span style="font-weight: 700;">L</span> Leap Wallet
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </header>
