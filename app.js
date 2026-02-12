@@ -866,10 +866,11 @@ async function submitBid() {
         // Get offline signer
         const offlineSigner = window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
 
-        // Create signing client
+        // Create signing client with custom registry for Stride messages
         const client = await window.CosmosClient.SigningStargateClient.connectWithSigner(
             RPC_URL,
-            offlineSigner
+            offlineSigner,
+            { registry: window.CosmosClient.registry }
         );
 
         console.log('Client created, preparing message...');
