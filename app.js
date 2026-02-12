@@ -845,89 +845,83 @@ async function submitBid() {
         document.getElementById('submitBidButton').disabled = true;
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
+        // Wait for CosmJS to be available
+        while (!window.cosmjs) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
         // Get account number and sequence
         const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
         const accountData = await accountResponse.json();
-        const accountNumber = accountData.account.account_number;
-        const sequence = accountData.account.sequence;
+        const accountNumber = String(accountData.account.account_number);
+        const sequence = String(accountData.account.sequence);
 
-        // Create the transaction message in Amino JSON format
-        const aminoMsg = {
-            type: 'stride/auction/MsgPlaceBid',
+        // Create the Protobuf message for MsgPlaceBid
+        const msgPlaceBid = {
+            typeUrl: '/stride.auction.MsgPlaceBid',
             value: {
-                auction_name: currentAuction.name,
+                auctionName: currentAuction.name,
                 bidder: walletState.address,
-                payment_token_amount: bidAmountMicro,
+                paymentTokenAmount: bidAmountMicro,
             },
         };
 
+        // Create fee
         const fee = {
             amount: [{ denom: 'ustrd', amount: '5000' }],
             gas: '200000',
         };
 
-        const signDoc = {
-            chain_id: STRIDE_CHAIN_INFO.chainId,
-            account_number: accountNumber,
-            sequence: sequence,
-            fee: fee,
-            msgs: [aminoMsg],
-            memo: 'Bid placed via STRD Dashboard',
-        };
+        // Use Keplr's signDirect for Protobuf signing
+        const signDoc = window.cosmjs.makeSignDoc(
+            [msgPlaceBid],
+            fee,
+            STRIDE_CHAIN_INFO.chainId,
+            'Bid placed via STRD Dashboard',
+            accountNumber,
+            sequence
+        );
 
-        // Sign the transaction using Keplr/Leap
-        const signed = await walletState.wallet.signAmino(
+        // Sign with the wallet
+        const signed = await walletState.wallet.signDirect(
             STRIDE_CHAIN_INFO.chainId,
             walletState.address,
             signDoc
         );
 
-        // Construct the StdTx
-        const stdTx = {
-            msg: signed.signed.msgs,
-            fee: signed.signed.fee,
-            signatures: [
-                {
-                    pub_key: signed.signature.pub_key,
-                    signature: signed.signature.signature,
-                }
-            ],
-            memo: signed.signed.memo,
-        };
+        // Create TxRaw for broadcasting
+        const txRaw = window.cosmjs.TxRaw.fromPartial({
+            bodyBytes: signed.signed.bodyBytes,
+            authInfoBytes: signed.signed.authInfoBytes,
+            signatures: [window.cosmjs.fromBase64(signed.signature.signature)],
+        });
 
-        // Encode the transaction to Amino JSON and then to base64 for RPC broadcast
-        const txBytes = new TextEncoder().encode(JSON.stringify(stdTx));
-        const txBase64 = btoa(String.fromCharCode(...txBytes));
+        // Encode to bytes
+        const txBytes = window.cosmjs.TxRaw.encode(txRaw).finish();
+        const txBase64 = window.cosmjs.toBase64(txBytes);
 
-        // Broadcast using Tendermint RPC
-        const broadcastResponse = await fetch(RPC_URL, {
+        // Broadcast using REST API v1beta1 endpoint
+        const broadcastResponse = await fetch(`${API_BASE_URL}/cosmos/tx/v1beta1/txs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'broadcast_tx_sync',
-                params: {
-                    tx: txBase64,
-                },
+                tx_bytes: txBase64,
+                mode: 'BROADCAST_MODE_SYNC',
             }),
         });
 
         const result = await broadcastResponse.json();
 
-        // Handle RPC response format
-        if (result.error) {
-            const errorMsg = result.error.data || result.error.message || 'Unknown error';
-            showBidError('Transaction failed: ' + errorMsg);
-        } else if (result.result && (result.result.code === 0 || !result.result.code)) {
-            const txHash = result.result.hash;
+        // Handle REST API response format
+        if (result.tx_response && (result.tx_response.code === 0 || !result.tx_response.code)) {
+            const txHash = result.tx_response.txhash;
             alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${txHash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            const errorMsg = result.result?.log || 'Unknown error';
+            const errorMsg = result.tx_response?.raw_log || result.message || 'Unknown error';
             showBidError('Transaction failed: ' + errorMsg);
         }
     } catch (error) {
