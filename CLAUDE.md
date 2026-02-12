@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A static website dashboard for monitoring STRD (Stride) token burns on the Stride blockchain. This is a GitHub Pages site hosted at burn.atomhe.art with no build process or dependencies.
+A static website dashboard for monitoring STRD (Stride) token burns on the Stride blockchain. This is a GitHub Pages site hosted at burn.atomhe.art. The site is static HTML/CSS/JavaScript with a pre-built CosmJS bundle.
 
 ## Development Commands
 
-Since this is a static site with no build tools, run it locally using any HTTP server:
+Run locally using any HTTP server:
 
 ```bash
 # Using Python 3
@@ -20,16 +20,34 @@ npx http-server
 # Then navigate to http://localhost:8000
 ```
 
-No build, test, or lint commands - this is pure HTML/CSS/JavaScript.
+## Building CosmJS Bundle (Only needed if updating CosmJS)
+
+The `cosmjs-bundle.js` file is pre-built and committed to the repo. Only rebuild if you need to update CosmJS:
+
+```bash
+# From parent directory (burn-site/)
+npm install
+node build-cosmjs.js
+
+# This generates burn.github.io/cosmjs-bundle.js (3.0MB minified)
+```
+
+The bundle includes @cosmjs/stargate with browser polyfills (crypto-browserify, stream-browserify, events) to work in Keplr's secure environment.
 
 ## Architecture
 
 ### Files Structure
 - **index.html** - Single-page application (SPA) containing both Auctions and Burn Stats
 - **app.js** - All JavaScript functionality for both pages and wallet integration
+- **cosmjs-bundle.js** - Pre-built CosmJS bundle (3.0MB) with browser polyfills
 - **userburns.html** - Transaction listing page querying Stride RPC directly
 - **static/strdburn.ico** - Favicon
 - **CNAME** - Custom domain configuration for GitHub Pages
+
+**Build files (in parent directory, not deployed):**
+- **build-cosmjs.js** - esbuild script to generate cosmjs-bundle.js
+- **package.json** - Dependencies for building the CosmJS bundle
+- **node-globals.js** - Browser polyfills for Node.js globals
 
 ### Single-Page Application
 The site uses a SPA architecture where:
@@ -55,9 +73,10 @@ The site uses a SPA architecture where:
 4. Handles large numbers (18+ decimals) using BigInt, displays with K/M/B abbreviations
 5. All auctions offer 3% discount (min_price_multiplier: 0.97)
 6. Min bid is 1 micro-STRD (0.000001 STRD) for all auctions
-7. Wallet integration using CosmJS from CDN (@cosmjs/stargate, @cosmjs/proto-signing)
+7. Wallet integration using pre-built CosmJS bundle (SigningStargateClient)
 8. Bid submission creates `MsgPlaceBid` transaction with typeUrl `/stride.auction.MsgPlaceBid`
 9. Modal-based bidding interface with real-time token estimate calculations
+10. Bundle works within Keplr's SES (Secure EcmaScript) environment with proper polyfills
 
 **User Burns Page (userburns.html)**:
 - Queries Stride RPC at `https://stride-rpc.polkachu.com` using JSON-RPC
