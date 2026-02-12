@@ -44,6 +44,7 @@ let walletState = {
     address: null,
     walletType: null,
     wallet: null,
+    strdBalance: 0,
 };
 
 let currentPage = 'burn-stats';
@@ -220,7 +221,8 @@ async function fetchStrdBalance() {
         const response = await fetch(`${API_BASE_URL}/cosmos/bank/v1beta1/balances/${walletState.address}/by_denom?denom=ustrd`);
         const data = await response.json();
         const amount = data.balance ? data.balance.amount : '0';
-        const strd = (parseFloat(amount) / 1000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        walletState.strdBalance = parseFloat(amount) / 1000000;
+        const strd = walletState.strdBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const balanceEl = document.getElementById('strdBalance');
         if (balanceEl) {
             balanceEl.textContent = `${strd} STRD`;
@@ -749,11 +751,14 @@ function createAuctionCard(auction) {
 
     // Calculate STRD cost per token
     let priceDisplay = '';
+    let totalStrdNeeded = 0;
     if (oraclePrices[tokenName] && oraclePrices['STRD']) {
         const tokenOraclePrice = oraclePrices[tokenName];
         const auctionPrice = tokenOraclePrice * parseFloat(auction.minPriceMultiplier);
         const strdPrice = oraclePrices['STRD'];
         const strdPerToken = auctionPrice / strdPrice;
+        const availableTokens = parseFloat(availableBalance) / Math.pow(10, decimals);
+        totalStrdNeeded = availableTokens * strdPerToken;
 
         priceDisplay = `
             <div class="detail-row">
@@ -766,6 +771,8 @@ function createAuctionCard(auction) {
             </div>
         `;
     }
+
+    const hasEnoughStrd = !walletState.isConnected || walletState.strdBalance >= totalStrdNeeded;
 
     const card = document.createElement('div');
     card.className = 'auction-card';
@@ -796,8 +803,8 @@ function createAuctionCard(auction) {
                 <span class="detail-value">${formatAmount(auction.totalSellingTokenSold, decimals)} ${tokenName}</span>
             </div>
         </div>
-        <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!hasBalance || !walletState.isConnected ? 'disabled' : ''}>
-            ${!walletState.isConnected ? 'Connect Wallet to Bid' : (hasBalance ? 'Place Bid' : 'Sold Out')}
+        <button class="bid-button" onclick="openBidModal('${auction.name}')" ${!hasBalance || !walletState.isConnected || !hasEnoughStrd ? 'disabled' : ''}>
+            ${!walletState.isConnected ? 'Connect Wallet to Bid' : (!hasBalance ? 'Sold Out' : (!hasEnoughStrd ? 'Insufficient STRD' : 'Place Bid'))}
         </button>
     `;
 
