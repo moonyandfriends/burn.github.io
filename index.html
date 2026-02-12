@@ -11,19 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "@cosmjs/stargate": "https://esm.run/@cosmjs/stargate@0.32.3",
-        "@cosmjs/proto-signing": "https://esm.run/@cosmjs/proto-signing@0.32.3"
-      }
-    }
-    </script>
-    <script type="module">
-        import { SigningStargateClient } from '@cosmjs/stargate';
-        window.CosmJS = { SigningStargateClient };
-        console.log('CosmJS Stargate loaded via importmap');
-    </script>
+    <script src="cosmjs-bundle.js"></script>
 
     <style>
         :root {

@@ -851,9 +851,9 @@ async function submitBid() {
         const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
         const accountData = await accountResponse.json();
 
-        // Wait for CosmJS to load first
+        // Wait for CosmJS bundle to load
         let attempts = 0;
-        while (!window.CosmJS || !window.CosmJS.SigningStargateClient) {
+        while (!window.CosmosClient || !window.CosmosClient.SigningStargateClient) {
             if (attempts++ > 50) {
                 showBidError('CosmJS library not loaded. Please refresh the page.');
                 return;
@@ -861,13 +861,13 @@ async function submitBid() {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        console.log('CosmJS loaded, creating client...');
+        console.log('CosmJS bundle loaded, creating client...');
 
         // Get offline signer
         const offlineSigner = window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
 
         // Create signing client
-        const client = await window.CosmJS.SigningStargateClient.connectWithSigner(
+        const client = await window.CosmosClient.SigningStargateClient.connectWithSigner(
             RPC_URL,
             offlineSigner
         );
