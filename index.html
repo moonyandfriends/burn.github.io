@@ -723,22 +723,17 @@
     </div>
 
     <script type="module">
-        // Import CosmJS libraries for transaction encoding
-        import { makeSignDoc as makeAminoSignDoc, serializeSignDoc, encodeSecp256k1Pubkey } from 'https://esm.sh/@cosmjs/amino@0.32.3';
-        import { toBase64, fromBase64 } from 'https://esm.sh/@cosmjs/encoding@0.32.3';
-        import { makeAuthInfoBytes, makeSignDoc, TxBodyEncodeObject, TxRaw } from 'https://esm.sh/@cosmjs/proto-signing@0.32.3';
+        // Import CosmJS Stargate client for complete transaction handling
+        import { SigningStargateClient } from 'https://esm.sh/@cosmjs/stargate@0.32.3';
+        import { Registry } from 'https://esm.sh/@cosmjs/proto-signing@0.32.3';
 
-        // Make these available globally for app.js
+        // Make available globally
         window.cosmjs = {
-            makeAminoSignDoc,
-            serializeSignDoc,
-            toBase64,
-            fromBase64,
-            encodeSecp256k1Pubkey,
-            makeAuthInfoBytes,
-            makeSignDoc,
-            TxRaw
+            SigningStargateClient,
+            Registry
         };
+
+        console.log('CosmJS loaded successfully');
     </script>
     <script src="app.js"></script>
 </body>

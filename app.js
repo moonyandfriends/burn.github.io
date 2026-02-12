@@ -845,19 +845,23 @@ async function submitBid() {
         document.getElementById('submitBidButton').disabled = true;
         document.getElementById('submitBidButton').textContent = 'Submitting...';
 
-        // Wait for CosmJS to be available
-        while (!window.cosmjs) {
+        // Wait for CosmJS to load
+        while (!window.cosmjs || !window.cosmjs.SigningStargateClient) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Get account number and sequence
-        const accountResponse = await fetch(`${API_BASE_URL}/cosmos/auth/v1beta1/accounts/${walletState.address}`);
-        const accountData = await accountResponse.json();
-        const accountNumber = String(accountData.account.account_number);
-        const sequence = String(accountData.account.sequence);
+        // Get the offline signer from the wallet
+        const offlineSigner = await walletState.wallet.getOfflineSignerAuto(STRIDE_CHAIN_INFO.chainId);
 
-        // Create the Protobuf message for MsgPlaceBid
-        const msgPlaceBid = {
+        // Create signing client
+        const client = await window.cosmjs.SigningStargateClient.connectWithSigner(
+            RPC_URL,
+            offlineSigner,
+            { gasPrice: { amount: '0.025', denom: 'ustrd' } }
+        );
+
+        // Create the message
+        const msg = {
             typeUrl: '/stride.auction.MsgPlaceBid',
             value: {
                 auctionName: currentAuction.name,
@@ -866,63 +870,25 @@ async function submitBid() {
             },
         };
 
-        // Create fee
         const fee = {
             amount: [{ denom: 'ustrd', amount: '5000' }],
             gas: '200000',
         };
 
-        // Use Keplr's signDirect for Protobuf signing
-        const signDoc = window.cosmjs.makeSignDoc(
-            [msgPlaceBid],
-            fee,
-            STRIDE_CHAIN_INFO.chainId,
-            'Bid placed via STRD Dashboard',
-            accountNumber,
-            sequence
-        );
-
-        // Sign with the wallet
-        const signed = await walletState.wallet.signDirect(
-            STRIDE_CHAIN_INFO.chainId,
+        // Sign and broadcast
+        const result = await client.signAndBroadcast(
             walletState.address,
-            signDoc
+            [msg],
+            fee,
+            'Bid placed via STRD Dashboard'
         );
 
-        // Create TxRaw for broadcasting
-        const txRaw = window.cosmjs.TxRaw.fromPartial({
-            bodyBytes: signed.signed.bodyBytes,
-            authInfoBytes: signed.signed.authInfoBytes,
-            signatures: [window.cosmjs.fromBase64(signed.signature.signature)],
-        });
-
-        // Encode to bytes
-        const txBytes = window.cosmjs.TxRaw.encode(txRaw).finish();
-        const txBase64 = window.cosmjs.toBase64(txBytes);
-
-        // Broadcast using REST API v1beta1 endpoint
-        const broadcastResponse = await fetch(`${API_BASE_URL}/cosmos/tx/v1beta1/txs`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                tx_bytes: txBase64,
-                mode: 'BROADCAST_MODE_SYNC',
-            }),
-        });
-
-        const result = await broadcastResponse.json();
-
-        // Handle REST API response format
-        if (result.tx_response && (result.tx_response.code === 0 || !result.tx_response.code)) {
-            const txHash = result.tx_response.txhash;
-            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${txHash}`);
+        if (result.code === 0) {
+            alert(`Bid placed successfully!\n\nYou bid ${strdNeeded.toFixed(2)} STRD for ${availableTokens.toFixed(6)} ${tokenName}\n\nTransaction hash: ${result.transactionHash}`);
             closeBidModal();
             loadAuctions();
         } else {
-            const errorMsg = result.tx_response?.raw_log || result.message || 'Unknown error';
-            showBidError('Transaction failed: ' + errorMsg);
+            showBidError('Transaction failed: ' + (result.rawLog || 'Unknown error'));
         }
     } catch (error) {
         console.error('Failed to submit bid:', error);
