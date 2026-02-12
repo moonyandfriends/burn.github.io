@@ -876,11 +876,14 @@ async function submitBid() {
         console.log('Client created, preparing message...');
 
         // Create the protobuf message
+        // Proto fields: bidder=1, auction_name=2, selling_token_amount=3, payment_token_amount=4
+        const availableBalance = auctionBalances[currentAuction.sellingDenom] || '0';
         const msg = {
             typeUrl: '/stride.auction.MsgPlaceBid',
             value: {
-                auctionName: currentAuction.name,
                 bidder: walletState.address,
+                auctionName: currentAuction.name,
+                sellingTokenAmount: availableBalance,
                 paymentTokenAmount: bidAmountMicro,
             },
         };
