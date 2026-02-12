@@ -864,9 +864,14 @@ async function submitBid() {
         console.log('CosmJS bundle loaded, creating client...');
 
         // Get offline signer from the connected wallet
-        const offlineSigner = walletState.walletType === 'leap'
-            ? window.leap.getOfflineSigner(STRIDE_CHAIN_INFO.chainId)
-            : window.keplr.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+        const wallet = walletState.walletType === 'leap' ? window.leap : window.keplr;
+        const offlineSigner = wallet.getOfflineSignerAuto
+            ? await wallet.getOfflineSignerAuto(STRIDE_CHAIN_INFO.chainId)
+            : wallet.getOfflineSigner(STRIDE_CHAIN_INFO.chainId);
+
+        console.log('Offline signer obtained from:', walletState.walletType);
+        const accounts = await offlineSigner.getAccounts();
+        console.log('Signer accounts:', accounts.map(a => a.address));
 
         // Create signing client with custom registry for Stride messages
         const client = await window.CosmosClient.SigningStargateClient.connectWithSigner(
