@@ -873,11 +873,14 @@ async function submitBid() {
         const accounts = await offlineSigner.getAccounts();
         console.log('Signer accounts:', accounts.map(a => a.address));
 
-        // Create signing client with custom registry for Stride messages
+        // Create signing client with custom registry and account parser for Stride
         const client = await window.CosmosClient.SigningStargateClient.connectWithSigner(
             RPC_URL,
             offlineSigner,
-            { registry: window.CosmosClient.registry }
+            {
+                registry: window.CosmosClient.registry,
+                accountParser: window.CosmosClient.strideAccountParser,
+            }
         );
 
         console.log('Client created, preparing message...');
